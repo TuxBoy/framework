@@ -4,7 +4,7 @@ namespace ITRocks\Framework\Tests\Objects;
 /**
  * An order class
  */
-class Order extends Document
+class Order extends Document implements Interfaced
 {
 
 	//--------------------------------------------------------------------------------------- $client
