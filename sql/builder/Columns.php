@@ -4,6 +4,7 @@ namespace ITRocks\Framework\Sql\Builder;
 use ITRocks\Framework\Dao\Func;
 use ITRocks\Framework\Dao\Func\Column;
 use ITRocks\Framework\Dao\Func\Concat;
+use ITRocks\Framework\Mapper\Abstract_Type\Object;
 use ITRocks\Framework\Reflection\Annotation\Property\Store_Annotation;
 use ITRocks\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
 use ITRocks\Framework\Reflection\Link_Class;
@@ -146,6 +147,9 @@ class Columns
 				$storage = $property->getAnnotation('storage')->value;
 				$type = $property->getType();
 				if (!$property->isStatic() && !($type->isClass() && $type->isMultiple())) {
+					if ($type->isClass() && Object::isAbstract($type->asString())) {
+						$storage = 'CONCAT(' . $storage . ', ".", ' . substr($storage, 3) . '_class)';
+					}
 					$column_names[$property->name] = $storage;
 					$properties[$property->name] = $property;
 					if ($storage !== $property->name) {
