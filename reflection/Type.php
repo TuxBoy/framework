@@ -2,6 +2,7 @@
 namespace ITRocks\Framework\Reflection;
 
 use DateTime;
+use ITRocks\Framework\Mapper\Abstract_Type\Object;
 use ITRocks\Framework\PHP;
 use ITRocks\Framework\Reflection\Interfaces;
 
@@ -279,6 +280,19 @@ class Type
 	public function hasSize()
 	{
 		return in_array($this->type, self::$sized_types);
+	}
+
+	//------------------------------------------------------------------------------------ isAbstract
+	/**
+	 * Returns true if the type is a class name for something which is abstract for the framework
+	 *
+	 * object, stdClass, traits, interfaces and abstract classes are abstract things
+	 *
+	 * @return boolean
+	 */
+	public function isAbstract()
+	{
+		return $this->isClass() && Object::isAbstract($this->getElementTypeAsString());
 	}
 
 	//--------------------------------------------------------------------------------------- isArray
