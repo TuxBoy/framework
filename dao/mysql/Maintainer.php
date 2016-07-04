@@ -5,6 +5,7 @@ use mysqli;
 use mysqli_result;
 use ITRocks\Framework\AOP\Joinpoint\Before_Method;
 use ITRocks\Framework\Dao;
+use ITRocks\Framework\PHP\Dependency;
 use ITRocks\Framework\Plugin\Register;
 use ITRocks\Framework\Plugin\Registerable;
 use ITRocks\Framework\Sql\Builder\Alter_Table;
@@ -28,6 +29,25 @@ class Maintainer implements Registerable
 	 * @var integer[] key is the query, value is the solved counter
 	 */
 	private $already = [];
+
+	//----------------------------------------------------------------------------------------- check
+	public function check()
+	{
+		$dao = Dao::current();
+		if ($dao instanceof Link) {
+			$mysqli = $dao->getConnection();
+			foreach (Dao::search(['type' => Dependency::T_SET], Dependency::class) as $dependency) {
+				/** @var $dependency Dependency */
+				$table_name = $dao->storeNameOf($dependency->class_name);
+				$class_tables = (new Table_Builder_Class())->build($dependency->class_name);
+				$mysql_table  = Table_Builder_Mysqli::build($mysqli, $table_name);
+				foreach ($class_tables as $class_table) {
+					if ($class_table->getName() === $mysql_table->getName()) {
+					}
+				}
+			}
+		}
+	}
 
 	//----------------------------------------------------------------------------------- createTable
 	/**
