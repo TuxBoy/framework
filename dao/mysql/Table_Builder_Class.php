@@ -1,13 +1,14 @@
 <?php
-namespace ITRocks\Framework\Dao\Mysql;
+namespace SAF\Framework\Dao\Mysql;
 
-use ITRocks\Framework\Dao;
-use ITRocks\Framework\Reflection\Annotation\Property\Link_Annotation;
-use ITRocks\Framework\Reflection\Annotation\Property\Store_Annotation;
-use ITRocks\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
-use ITRocks\Framework\Reflection\Reflection_Class;
-use ITRocks\Framework\Reflection\Reflection_Property;
-use ITRocks\Framework\Tools\Namespaces;
+use SAF\Framework\Dao;
+use SAF\Framework\Mapper\Abstract_Type\Object;
+use SAF\Framework\Reflection\Annotation\Property\Link_Annotation;
+use SAF\Framework\Reflection\Annotation\Property\Store_Annotation;
+use SAF\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
+use SAF\Framework\Reflection\Reflection_Class;
+use SAF\Framework\Reflection\Reflection_Property;
+use SAF\Framework\Tools\Namespaces;
 
 /**
  * Builds Table object with a structure matching the structure of a PHP class
@@ -107,7 +108,12 @@ class Table_Builder_Class
 						) {
 							$class_name = $property->getType()->asString();
 							$this->dependencies_context[$class_name] = $class_name;
-							$table->addForeignKey(Foreign_Key::buildProperty($table_name, $property));
+							if (Object::isAbstract($class_name)) {
+								$table->addColumn(Column::buildAbstractProperty($property));
+							}
+							else {
+								$table->addForeignKey(Foreign_Key::buildProperty($table_name, $property));
+							}
 							$table->addIndex(Index::buildLink($property->getAnnotation('storage')->value));
 						}
 					}
