@@ -1,9 +1,10 @@
 <?php
-namespace ITRocks\Framework\Reflection;
+namespace SAF\Framework\Reflection;
 
 use DateTime;
-use ITRocks\Framework\PHP;
-use ITRocks\Framework\Reflection\Interfaces;
+use SAF\Framework\Mapper\Abstract_Type\Object;
+use SAF\Framework\PHP;
+use SAF\Framework\Reflection\Interfaces;
 
 /**
  * PHP types manager
@@ -199,7 +200,7 @@ class Type
 	 * - basic types
 	 * - object types with their namespace, but never beginning with a '\'
 	 *
-	 * @example 'string', 'ITRocks\Framework\Tools\Date_Time'
+	 * @example 'string', 'SAF\Framework\Tools\Date_Time'
 	 * @return string
 	 */
 	public function asString()
@@ -279,6 +280,19 @@ class Type
 	public function hasSize()
 	{
 		return in_array($this->type, self::$sized_types);
+	}
+
+	//------------------------------------------------------------------------------------ isAbstract
+	/**
+	 * Returns true if the type is a class name for something which is abstract for the framework
+	 *
+	 * object, stdClass, traits, interfaces and abstract classes are abstract things
+	 *
+	 * @return boolean
+	 */
+	public function isAbstract()
+	{
+		return $this->isClass() && Object::isAbstract($this->getElementTypeAsString());
 	}
 
 	//--------------------------------------------------------------------------------------- isArray
