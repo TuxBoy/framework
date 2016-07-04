@@ -110,6 +110,26 @@ class Column implements Sql\Column
 		$this->cleanupDefault();
 	}
 
+	//------------------------------------------------------------------------- buildAbstractProperty
+	/**
+	 * Builds a Column object using an abstract class property
+	 * This creates the '*_class' property associated to the 'id_*' classic property
+	 *
+	 * @param $property Reflection_Property
+	 * @return Column
+	 */
+	public static function buildAbstractProperty(Reflection_Property $property)
+	{
+		$column = new Column();
+		$column->Field   = self::propertyNameToMysql($property, '_class');
+		$column->Type    = 'varchar(255)';
+		$column->Null    = self::propertyNullToMysql($property);
+		$column->Key     = '';
+		$column->Default = '';
+		$column->Extra   = '';
+		return $column;
+	}
+
 	//--------------------------------------------------------------------------------- buildProperty
 	/**
 	 * Builds a Column object using a class property

@@ -2,6 +2,7 @@
 namespace ITRocks\Framework\Dao\Mysql;
 
 use ITRocks\Framework\Dao;
+use ITRocks\Framework\Mapper\Abstract_Type\Object;
 use ITRocks\Framework\Reflection\Annotation\Property\Link_Annotation;
 use ITRocks\Framework\Reflection\Annotation\Property\Store_Annotation;
 use ITRocks\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
@@ -107,7 +108,12 @@ class Table_Builder_Class
 						) {
 							$class_name = $property->getType()->asString();
 							$this->dependencies_context[$class_name] = $class_name;
-							$table->addForeignKey(Foreign_Key::buildProperty($table_name, $property));
+							if (Object::isAbstract($class_name)) {
+								$table->addColumn(Column::buildAbstractProperty($property));
+							}
+							else {
+								$table->addForeignKey(Foreign_Key::buildProperty($table_name, $property));
+							}
 							$table->addIndex(Index::buildLink($property->getAnnotation('storage')->value));
 						}
 					}

@@ -74,13 +74,16 @@ trait Column_Builder_Property
 	 * Gets the mysql field name for a property
 	 *
 	 * @param $property Reflection_Property
+	 * @param $append   string Something to append to the name of the property
 	 * @return string
 	 */
-	private static function propertyNameToMysql(Reflection_Property $property)
+	private static function propertyNameToMysql(Reflection_Property $property, $append = '')
 	{
 		$type = $property->getType();
-		return ($type->isBasic() || $property->getAnnotation(Store_Annotation::ANNOTATION)->value)
-			? $property->getAnnotation('storage')->value
+		return (
+			$type->isBasic() || $property->getAnnotation(Store_Annotation::ANNOTATION)->value || $append
+		)
+			? ($property->getAnnotation('storage')->value . $append)
 			: ('id_' . $property->getAnnotation('storage')->value);
 	}
 
