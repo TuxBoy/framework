@@ -4,6 +4,7 @@ namespace ITRocks\Framework\Dao\Option;
 use ITRocks\Framework\Builder;
 use ITRocks\Framework\Dao\Option;
 use ITRocks\Framework\Mapper\Comparator;
+use ITRocks\Framework\Reflection\Annotation\Class_\Sort_Annotation;
 use ITRocks\Framework\Reflection\Reflection_Class;
 use ITRocks\Framework\Reflection\Reflection_Property;
 
@@ -102,9 +103,15 @@ class Sort implements Option
 		) {
 			$class_name = Builder::className($class_name);
 			$this->class_name = $class_name;
-			$columns = (new Reflection_Class($class_name))->getListAnnotation('sort')->values();
+			$class = new Reflection_Class($class_name);
+			$columns = $class->getListAnnotation(Sort_Annotation::ANNOTATION)->values();
 			if (!$columns) {
-				$columns = (new Reflection_Class($class_name))->getListAnnotation('representative')->values();
+				$columns = $class->getListAnnotation('representative')->values();
+				foreach ($columns as $column_key => $column) {
+					if ($class->getProperty($column)->getType()->isAbstract()) {
+						unset($columns[$column_key]);
+					}
+				}
 			}
 			$this->columns = $columns;
 			$this->calculateReverse();
