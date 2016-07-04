@@ -1,11 +1,12 @@
 <?php
-namespace ITRocks\Framework\Dao\Option;
+namespace SAF\Framework\Dao\Option;
 
-use ITRocks\Framework\Builder;
-use ITRocks\Framework\Dao\Option;
-use ITRocks\Framework\Mapper\Comparator;
-use ITRocks\Framework\Reflection\Reflection_Class;
-use ITRocks\Framework\Reflection\Reflection_Property;
+use SAF\Framework\Builder;
+use SAF\Framework\Dao\Option;
+use SAF\Framework\Mapper\Comparator;
+use SAF\Framework\Reflection\Annotation\Class_\Sort_Annotation;
+use SAF\Framework\Reflection\Reflection_Class;
+use SAF\Framework\Reflection\Reflection_Property;
 
 /**
  * A DAO sort option
@@ -44,7 +45,7 @@ class Sort implements Option
 	 * $option = new Dao_Sort_Option(['first_name', 'last_name', 'city.country.name'));
 	 * // Please prefer using this equivalent for standard calls, ie in this standard use example :
 	 * $users = Dao::readAll(
-	 *   'ITRocks\Framework\User',
+	 *   'SAF\Framework\User',
 	 *   Dao::sort(['first_name', 'last_name', 'city.country.name')));
 	 * );
 	 *
@@ -102,9 +103,15 @@ class Sort implements Option
 		) {
 			$class_name = Builder::className($class_name);
 			$this->class_name = $class_name;
-			$columns = (new Reflection_Class($class_name))->getListAnnotation('sort')->values();
+			$class = new Reflection_Class($class_name);
+			$columns = $class->getListAnnotation(Sort_Annotation::ANNOTATION)->values();
 			if (!$columns) {
-				$columns = (new Reflection_Class($class_name))->getListAnnotation('representative')->values();
+				$columns = $class->getListAnnotation('representative')->values();
+				foreach ($columns as $column_key => $column) {
+					if ($class->getProperty($column)->getType()->isAbstract()) {
+						unset($columns[$column_key]);
+					}
+				}
 			}
 			$this->columns = $columns;
 			$this->calculateReverse();
