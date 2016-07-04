@@ -15,6 +15,8 @@ use ITRocks\Framework\Reflection\Interfaces\Reflection_Class;
 class Sort_Annotation extends List_Annotation implements Class_Context_Annotation
 {
 
+	const ANNOTATION = 'sort';
+	
 	//----------------------------------------------------------------------------------- __construct
 	/**
 	 * Builds representative annotation content

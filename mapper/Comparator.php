@@ -1,8 +1,9 @@
 <?php
-namespace ITRocks\Framework\Mapper;
+namespace SAF\Framework\Mapper;
 
-use ITRocks\Framework\Dao\Option\Reverse;
-use ITRocks\Framework\Reflection\Reflection_Class;
+use SAF\Framework\Dao\Option\Reverse;
+use SAF\Framework\Reflection\Annotation\Class_\Sort_Annotation;
+use SAF\Framework\Reflection\Reflection_Class;
 
 /**
  * This
@@ -43,7 +44,7 @@ class Comparator
 		}
 		else {
 			$class = new Reflection_Class($class_name);
-			$this->properties_path = $class->getListAnnotation('sort')->values();
+			$this->properties_path = $class->getListAnnotation(Sort_Annotation::ANNOTATION)->values();
 		}
 	}
 
