@@ -1,16 +1,15 @@
 <?php
-
 namespace SAF\Framework\Plugin;
 
 use SAF\Framework\Session;
 
 /**
- * Provides a newPlugin method
+ * Provides a getPlugin method as a replacement for Session::current->plugins->get() calls
  */
-trait Has_NewPlugin
+trait Has_Get_Plugin
 {
 
-	//------------------------------------------------------------------------------------- newPlugin
+	//------------------------------------------------------------------------------------- getPlugin
 	/**
 	 * Gets this plugin
 	 *
@@ -20,7 +19,7 @@ trait Has_NewPlugin
 	 *
 	 * @return static
 	 */
-	public static function newPlugin($level = null, $register = false, $activate = false)
+	public static function getPlugin($level = null, $register = false, $activate = false)
 	{
 		return Session::current()->plugins->get(static::class, $level, $register, $activate);
 	}
