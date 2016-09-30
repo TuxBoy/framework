@@ -1,24 +1,28 @@
 <?php
 
-namespace SAF\Framework\Builder;
+namespace SAF\Framework\Plugin;
 
-use SAF\Framework\Builder;
+use SAF\Framework\Session;
 
 /**
- * Provides a newInstance method
+ * Provides a newPlugin method
  */
-trait Has_NewInstance
+trait Has_NewPlugin
 {
 
-	//----------------------------------------------------------------------------------- newInstance
+	//------------------------------------------------------------------------------------- newPlugin
 	/**
-	 * Builds a new instance of this class
+	 * Gets this plugin
+	 *
+	 * @param $level string|null
+	 * @param $register boolean
+	 * @param $activate boolean
 	 *
 	 * @return static
 	 */
-	public static function newInstance()
+	public static function newPlugin($level = null, $register = false, $activate = false)
 	{
-		return Builder::create(static::class);
+		return Session::current()->plugins->get(static::class, $level, $register, $activate);
 	}
 
 }
