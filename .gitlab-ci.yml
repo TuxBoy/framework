@@ -1,4 +1,4 @@
-image: debian-bappli:8
+image: registry.bappli.com/saf/debian-ci:latest
 
 services:
   - mysql:5.6
