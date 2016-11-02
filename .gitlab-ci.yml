@@ -1,0 +1,16 @@
+image: debian:8
+
+services:
+  - mysql:5.6
+
+variables:
+  # Configure mysql service (https://hub.docker.com/_/mysql/)
+  MYSQL_DATABASE: saf_frameworkci
+  MYSQL_ROOT_PASSWORD: saf_frameworkci
+
+before_script:
+  - apt update && apt -yqq install git apache2 curl php5-cli php5-curl
+  - git clone git@gitlab.bappli.com:saf/frameworkci /frameworkci && php composer.phar install
+
+script:
+  - ls -lrth /frameworkci
