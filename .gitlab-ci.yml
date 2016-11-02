@@ -16,4 +16,5 @@ test:
   script:
     - ls -lrth /frameworkci
     - cd /frameworkci && cat composer.json
+    - ls -lrth /builds
     - php composer.phar install
