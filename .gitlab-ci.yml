@@ -11,8 +11,9 @@ variables:
 before_script:
   - apt update && apt upgrade -y
   - git clone https://gitlab.bappli.com/saf/frameworkci /frameworkci
-  - cd /frameworkci && php composer.phar install
 
 test:
   script:
     - ls -lrth /frameworkci
+    - cd /frameworkci && cat composer.json
+    - php composer.phar install
