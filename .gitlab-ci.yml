@@ -15,4 +15,4 @@ before_script:
 
 test:
   script:
-    - php /frameworkci/saf/framework/console /SAF/Framework/Tests/run
+    - php /frameworkci/saf/framework/console.php /SAF/Framework/Tests/run
