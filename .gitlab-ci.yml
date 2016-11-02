@@ -9,9 +9,9 @@ variables:
   MYSQL_ROOT_PASSWORD: saf_frameworkci
 
 before_script:
-  - apt update && apt -yqq install git apache2 curl php5-cli php5-curl
+  - apt update && apt -yqq install git apache2 curl php5
   - git clone https://gitlab.bappli.com/saf/frameworkci /frameworkci
-  - php composer.phar install
+  - cd /frameworkci && php composer.phar install
 
 test:
   script:
