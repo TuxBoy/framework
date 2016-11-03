@@ -10,9 +10,9 @@ variables:
 
 before_script:
   - apt update && apt upgrade -y
-  - git clone https://gitlab.bappli.com/saf/frameworkci /frameworkci
-  - cd /frameworkci && php composer.phar install
+  - git clone https://gitlab.bappli.com/saf/frameworkci /builds
+  - cd /builds && php composer.phar install
 
 test:
   script:
-    - php /frameworkci/saf/framework/console.php /SAF/Framework/Tests/run
+    - php /builds/saf/framework/console.php /SAF/Framework/Tests/run
