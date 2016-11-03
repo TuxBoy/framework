@@ -10,7 +10,8 @@ variables:
 
 before_script:
   - apt update && apt upgrade -y
-  - git clone https://gitlab.bappli.com/saf/frameworkci /builds
+  - git clone https://gitlab.bappli.com/saf/frameworkci /frameworkci
+  - mv /frameworkci/* /builds
   - cd /builds && php composer.phar install
 
 test:
