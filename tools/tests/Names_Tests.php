@@ -1,9 +1,9 @@
 <?php
-namespace SAF\Framework\Tools\Tests;
+namespace ITRocks\Framework\Tools\Tests;
 
-use SAF\Framework\Tests\Objects\Quote_Salesman_Same_Set;
-use SAF\Framework\Tests\Test;
-use SAF\Framework\Tools\Names;
+use ITRocks\Framework\Tests\Objects\Quote_Salesman_Same_Set;
+use ITRocks\Framework\Tests\Test;
+use ITRocks\Framework\Tools\Names;
 
 /**
  * Search parameters parser unit tests
@@ -27,7 +27,7 @@ class Names_Tests extends Test
 	 */
 	public function testClassToSet()
 	{
-		$check = Names::classToSet(Quote_Salesman_Same_Set::class);
+		$check  = Names::classToSet(Quote_Salesman_Same_Set::class);
 		$assume = Quote_Salesman_Same_Set::class . 's';
 		return $this->assume(__FUNCTION__, $check, $assume, false);
 	}

@@ -1,5 +1,5 @@
 <?php
-namespace SAF\Framework\Tests\Objects;
+namespace ITRocks\Framework\Tests\Objects;
 
 /**
  * A salesman with specific behavior but having same storage table (same set)
