@@ -1,5 +1,5 @@
 <?php
-namespace SAF\Framework\Html;
+namespace ITRocks\Framework\Html;
 
 /**
  * Php query : a portage to jQuery for easy manipulation of DOM

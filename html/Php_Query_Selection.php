@@ -1,12 +1,5 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: baptiste
- * Date: 15/09/15
- * Time: 15:23
- */
-
-namespace SAF\Framework\Html;
+namespace ITRocks\Framework\Html;
 
 /**
  * Php query selection
