@@ -1,7 +1,7 @@
 <?php
-namespace SAF\Framework\Builder;
+namespace ITRocks\Framework\Builder;
 
-use SAF\Framework\Builder;
+use ITRocks\Framework\Builder;
 
 /**
  * Provides a newInstance method as a replacement for Builder::create() calls

@@ -1,7 +1,7 @@
 <?php
-namespace SAF\Framework\Plugin;
+namespace ITRocks\Framework\Plugin;
 
-use SAF\Framework\Session;
+use ITRocks\Framework\Session;
 
 /**
  * Provides a getPlugin method as a replacement for Session::current->plugins->get() calls
