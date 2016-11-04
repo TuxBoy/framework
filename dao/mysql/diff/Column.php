@@ -1,7 +1,7 @@
 <?php
-namespace SAF\Framework\Dao\Mysql\Diff;
+namespace ITRocks\Framework\Dao\Mysql\Diff;
 
-use SAF\Framework\Dao\Mysql;
+use ITRocks\Framework\Dao\Mysql;
 
 /**
  * Column diff

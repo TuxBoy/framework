@@ -1,6 +1,7 @@
 <?php
-namespace SAF\Framework\Mapper\Abstract_Type;
+namespace ITRocks\Framework\Mapper\Abstract_Type;
 
+use ITRocks\Framework\Dao\Mysql\Column;
 use ReflectionClass;
 
 /**
@@ -8,7 +9,7 @@ use ReflectionClass;
  *
  * Implements needs to set Abstract_Class|Interface|Trait_Name|object into a property @var
  *
- * @see SAF\Framework\Dao\Mysql\Column::buildAbstractProperty
+ * @see Column::buildAbstractProperty
  */
 class Object
 {
