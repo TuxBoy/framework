@@ -1,18 +1,18 @@
 <?php
-namespace SAF\Framework\Sql\Builder;
+namespace ITRocks\Framework\Sql\Builder;
 
-use SAF\Framework\Dao\Func;
-use SAF\Framework\Dao\Func\Column;
-use SAF\Framework\Dao\Func\Concat;
-use SAF\Framework\Mapper\Abstract_Type\Object;
-use SAF\Framework\Reflection\Annotation\Property\Store_Annotation;
-use SAF\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
-use SAF\Framework\Reflection\Link_Class;
-use SAF\Framework\Reflection\Reflection_Class;
-use SAF\Framework\Reflection\Reflection_Property;
-use SAF\Framework\Sql;
-use SAF\Framework\Sql\Join\Joins;
-use SAF\Framework\Sql\Join;
+use ITRocks\Framework\Dao\Func;
+use ITRocks\Framework\Dao\Func\Column;
+use ITRocks\Framework\Dao\Func\Concat;
+use ITRocks\Framework\Mapper\Abstract_Type\Object;
+use ITRocks\Framework\Reflection\Annotation\Property\Store_Annotation;
+use ITRocks\Framework\Reflection\Annotation\Sets\Replaces_Annotations;
+use ITRocks\Framework\Reflection\Link_Class;
+use ITRocks\Framework\Reflection\Reflection_Class;
+use ITRocks\Framework\Reflection\Reflection_Property;
+use ITRocks\Framework\Sql;
+use ITRocks\Framework\Sql\Join\Joins;
+use ITRocks\Framework\Sql\Join;
 
 /**
  * SQL columns list expression builder

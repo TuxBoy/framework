@@ -1,7 +1,7 @@
 <?php
-namespace SAF\Framework\Mapper\Abstract_;
+namespace ITRocks\Framework\Mapper\Abstract_;
 
-use SAF\Framework\Tests\Test;
+use ITRocks\Framework\Tests\Test;
 
 /**
  * Abstract collection / map / object unit tests
@@ -12,7 +12,7 @@ class Tests extends Test
 	//----------------------------------------------------------------------------- testAbstractClass
 	public function testAbstractClass()
 	{
-		
+
 	}
 
 	//--------------------------------------------------------------------------------- testInterface

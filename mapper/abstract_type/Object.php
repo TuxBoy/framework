@@ -1,14 +1,16 @@
 <?php
-namespace SAF\Framework\Mapper\Abstract_Type;
+namespace ITRocks\Framework\Mapper\Abstract_Type;
 
+use ITRocks\Framework\Dao\Mysql\Column;
 use ReflectionClass;
+use stdClass;
 
 /**
  * Abstract object feature
  *
  * Implements needs to set Abstract_Class|Interface|Trait_Name|object into a property @var
  *
- * @see SAF\Framework\Dao\Mysql\Column::buildAbstractProperty
+ * @see Column::buildAbstractProperty
  */
 class Object
 {
@@ -26,11 +28,11 @@ class Object
 	 */
 	public static function isAbstract($class_name)
 	{
-		if (in_array($class_name, ['object', 'stdClass'])) {
+		if (in_array($class_name, ['object', stdClass::class])) {
 			return true;
 		}
 		$class = new ReflectionClass($class_name);
-		return in_array($class_name, ['object', 'stdClass'])
+		return in_array($class_name, ['object', stdClass::class])
 			|| $class->isAbstract()
 			|| $class->isInterface()
 			|| $class->isTrait();
