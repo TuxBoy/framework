@@ -56,4 +56,14 @@ class Annotation
 		);
 	}
 
+	//-------------------------------------------------------------------------------------- getValue
+	/**
+	 * Get the value
+	 *
+	 * @return string
+	 */
+	public function getValue()
+	{
+		return $this->value;
+	}
 }
