@@ -18,8 +18,8 @@
 		<!--getErrors-->
 		<li>
 			<!--property?-->
-			|{property.alias}| {?getPropertyValue}&nbsp;: |{reportMessage}|
-			<!--value--> - |expected ¦{.}¦|<!--value-->
+			|{property.aliased_path}| {?getPropertyValue}&nbsp;: |{reportMessage}|
+			<!--getValue--> - |expected ¦{.}¦|<!--getValue-->
 			<script>
 				$('#{property.name} label + div').each(function () {
 					$(this).find("input:visible:not(:checkbox), textarea, select").addClass('bad');
