@@ -109,7 +109,9 @@ $config['ITRocks/Framework'] = [
 	//------------------------------------------------------------------------------- Priority::HIGH+
 	Priority::HIGH    => [],
 	Priority::HIGHER  => [],
-	Priority::HIGHEST => [],
+	Priority::HIGHEST => [
+		A_Test_Plugin::class,
+	],
 	Priority::REMOVE  => []
 
 ];
