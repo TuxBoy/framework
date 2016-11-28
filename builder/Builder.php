@@ -1,6 +1,7 @@
 <?php
 namespace ITRocks\Framework;
 
+use ITRocks\Framework\PHP\Compiler;
 use ReflectionClass;
 use ITRocks\Framework\Builder\Class_Builder;
 use ITRocks\Framework\Mapper\Getter;
@@ -15,7 +16,6 @@ use ITRocks\Framework\Reflection\Reflection_Property;
 use ITRocks\Framework\Reflection\Type;
 use ITRocks\Framework\Sql\Join\Joins;
 use ITRocks\Framework\Tools\Current_With_Default;
-use ITRocks\Framework\Tools\Names;
 use ITRocks\Framework\Tools\Set;
 use Serializable;
 
@@ -281,24 +281,6 @@ class Builder implements Activable, Registerable, Serializable
 		return array_merge($this->replacements, $this->compositions);
 	}
 
-	//--------------------------------------------------------------------------------------- isBuilt
-	/**
-	 * Returns true if class name is a built class name
-	 *
-	 * A built class has a namespace beginning with 'Vendor\Application\Built\'
-	 *
-	 * @param $class_name string
-	 * @return boolean
-	 */
-	public static function isBuilt($class_name)
-	{
-		if ($application = Application::current()) {
-			$check = $application->getNamespace() . BS . 'Built' . BS;
-			return substr($class_name, 0, strlen($check)) == $check;
-		}
-		return false;
-	}
-
 	//----------------------------------------------------------------------------------- isObjectSet
 	/**
 	 * Returns true if any property of $object is set and different than its default value
@@ -408,10 +390,10 @@ class Builder implements Activable, Registerable, Serializable
 				if ($this->build) {
 					$this->compositions[$class_name] = $result;
 					$built_class_name = Class_Builder::builtClassName($class_name);
-					if (file_exists(
-						Application::current()->getCacheDir() . '/compiled/'
-						. str_replace('/', '-', Names::classToPath($built_class_name))
-					)) {
+					$file_name = Compiler::getCacheDir() . SL . Compiler::classToPath($built_class_name);
+					if (
+						file_exists($file_name)
+					) {
 						$result = $built_class_name;
 					}
 					else {
@@ -423,14 +405,14 @@ class Builder implements Activable, Registerable, Serializable
 					$result = $class_name;
 				}
 			}
-			elseif (!$this->build && self::isBuilt($result)) {
+			elseif (!$this->build && Class_Builder::isBuilt($result)) {
 				$result = $class_name;
 			}
 		}
 		else {
 			$result = $class_name;
 		}
-		return (($class_name != $result) && !self::isBuilt($result))
+		return (($class_name != $result) && !Class_Builder::isBuilt($result))
 			? $this->replacementClassName($result)
 			: $result;
 	}
