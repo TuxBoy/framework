@@ -27,6 +27,14 @@ abstract class Writer
 	 */
 	private static $before_write;
 
+	//--------------------------------------------------------------------------------- $history_date
+	/**
+	 * Date to set in history entries for a given class and identifier
+	 * @example [User::class][12345] = Date_Time()
+	 * @var Date_Time[][]
+	 */
+	private static $history_dates;
+
 	//------------------------------------------------------------------------------------ afterWrite
 	/**
 	 * @param $object object
@@ -145,15 +153,12 @@ abstract class Writer
 		);
 		$history = [];
 		$class = new Reflection_Class(get_class($before));
-		$date = new Date_Time();
-		self::createHistoryForClass($date, $after, $before, $after, $history, $history_class, $class,
-			'');
+		self::createHistoryForClass($after, $before, $after, $history, $history_class, $class, '');
 		return $history;
 	}
 
 	//------------------------------------------------------------------------- createHistoryForClass
 	/**
-	 * @param $date          Date_Time
 	 * @param $main          object
 	 * @param $before        object|null
 	 * @param $after         object|null
@@ -162,7 +167,7 @@ abstract class Writer
 	 * @param $class         Reflection_Class
 	 * @param $prefix        string prefix path for properties of collection/map/components
 	 */
-	private static function createHistoryForClass($date, $main, $before, $after, &$history,
+	private static function createHistoryForClass($main, $before, $after, &$history,
 		$history_class, $class, $prefix)
 	{
 		// we only want to parse accessible properties, not private
@@ -179,7 +184,8 @@ abstract class Writer
 				}
 				if (self::areDifferent($property, $old_value, $new_value)) {
 					$history[] = Builder::create(
-						$history_class->name, [$main, $property_path, $old_value, $new_value, $date]
+						$history_class->name,
+						[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
 					);
 				}
 			}
@@ -199,7 +205,7 @@ abstract class Writer
 				$sub_before = reset($sub_before_array);
 				$sub_after  = reset($sub_after_array);
 				while ($sub_before !== false || $sub_after !== false) {
-					self::createHistoryForClass($date, $main, $sub_before, $sub_after, $history,
+					self::createHistoryForClass($main, $sub_before, $sub_after, $history,
 						$history_class, $sub_class, $property_path . DOT);
 					$sub_before = next($sub_before_array);
 					$sub_after  = next($sub_after_array);
@@ -254,6 +260,26 @@ abstract class Writer
 				}
 			}
 		}
+	}
+
+	//-------------------------------------------------------------------------------- getHistoryDate
+	/**
+	 * @param $class_name_or_object string|object
+	 * @param $identifier           integer|null
+	 * @return Date_Time
+	 */
+	static public function getHistoryDate($class_name_or_object, $identifier = null)
+	{
+		if (is_object($class_name_or_object)) {
+			$class_name = Manager::getSourceClassName(get_class($class_name_or_object));
+			$identifier = Dao::getObjectIdentifier($class_name_or_object);
+		} else {
+			$class_name = $class_name_or_object;
+		}
+		if (!isset(self::$history_dates[$class_name][$identifier])) {
+			self::$history_dates[$class_name][$identifier] = new Date_Time();
+		}
+		return self::$history_dates[$class_name][$identifier];
 	}
 
 	//---------------------------------------------------------------------------- shouldBeHistorized
