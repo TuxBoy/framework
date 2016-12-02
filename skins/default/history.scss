@@ -1,0 +1,76 @@
+.business_object.history {
+	display: inline-block;
+	vertical-align: top;
+
+	li {
+		list-style: none;
+	}
+
+	li.highlight {
+		background: lightgrey;
+		padding: .3em;
+	}
+
+	> h2 {
+		/*display: none;*/
+	}
+
+	> ul > li {
+
+		> h3 {
+			padding: .5em 0;
+			text-decoration: underline;
+		}
+
+		> ul > li {
+			> h4 {
+				font-weight: normal;
+				padding: .5em 0;
+			}
+
+			> ul {
+				display: table;
+
+				> li {
+					display: table-row;
+
+					> span {
+						display: table-cell;
+						padding: .5em;
+
+						&.property.name {
+							font-weight: bold;
+							padding-right: .3em;
+						}
+
+						&.value {
+							font-weight: normal;
+
+							> .new {
+								color: darkblue;
+
+								&:before {
+									color: black;
+									content: ' devient ';
+									font-style: italic;
+									font-weight: lighter;
+								}
+							}
+
+							> .old {
+								color: darkred;
+
+								&:last-child:after {
+									color: black;
+									content: ' supprimé';
+									font-style: italic;
+									font-weight: lighter;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
