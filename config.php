@@ -40,13 +40,13 @@ $config['ITRocks/Framework'] = [
 		Weaver::class,              // ! must be declared before any plugin that uses AOP
 		Builder::class,             // ! every classes before Builder will not be replaceable
 		Application_Updater::class, // check for update at each script call
-		Xdebug::class               // remove xdebug parameters at each script call
+		Xdebug::class,              // remove xdebug parameters at each script call
 		/*
-		Error_Handlers::class => [
-			[E_ALL,               Fatal_Error_Handler::class),
-			[E_ALL & !E_NOTICE,   Main_Error_Handler::class),
-			[E_RECOVERABLE_ERROR, To_Exception_Error_Handler::class),
-		)
+		Error_Handler\Error_Handlers::class => [
+			[E_ALL,               Error_Handler\Fatal_Error_Handler::class],
+			[E_ALL & !E_NOTICE,   Error_Handler\Main_Error_Handler::class],
+			[E_RECOVERABLE_ERROR, Error_Handler\To_Exception_Error_Handler::class],
+		],
 		*/
 	],
 
