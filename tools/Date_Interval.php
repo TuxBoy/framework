@@ -27,7 +27,8 @@ class Date_Interval extends DateInterval
 
 	//--------------------------------------------------------------------------------------- compare
 	/**
-	 * Returns true if interval is positive, false if negative, or 0 if equal
+	 * Returns 1 if interval is positive, -1 if negative, or 0 if equal
+	 * @return integer
 	 */
 	public function compare()
 	{
