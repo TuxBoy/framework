@@ -1,0 +1,43 @@
+@charset "UTF-8";
+.business_object.history {
+  display: inline-block;
+  vertical-align: top; }
+  .business_object.history li {
+    list-style: none; }
+  .business_object.history li.highlight {
+    background: lightgrey;
+    padding: .3em; }
+  .business_object.history > h2 {
+    /*display: none;*/ }
+  .business_object.history > ul > li > h3 {
+    padding: .5em 0;
+    text-decoration: underline; }
+  .business_object.history > ul > li > ul > li > h4 {
+    font-weight: normal;
+    padding: .5em 0; }
+  .business_object.history > ul > li > ul > li > ul {
+    display: table; }
+    .business_object.history > ul > li > ul > li > ul > li {
+      display: table-row; }
+      .business_object.history > ul > li > ul > li > ul > li > span {
+        display: table-cell;
+        padding: .5em; }
+        .business_object.history > ul > li > ul > li > ul > li > span.property.name {
+          font-weight: bold;
+          padding-right: .3em; }
+        .business_object.history > ul > li > ul > li > ul > li > span.value {
+          font-weight: normal; }
+          .business_object.history > ul > li > ul > li > ul > li > span.value > .new {
+            color: darkblue; }
+            .business_object.history > ul > li > ul > li > ul > li > span.value > .new:before {
+              color: black;
+              content: ' devient ';
+              font-style: italic;
+              font-weight: lighter; }
+          .business_object.history > ul > li > ul > li > ul > li > span.value > .old {
+            color: darkred; }
+            .business_object.history > ul > li > ul > li > ul > li > span.value > .old:last-child:after {
+              color: black;
+              content: ' supprimé';
+              font-style: italic;
+              font-weight: lighter; }
