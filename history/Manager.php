@@ -354,7 +354,7 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	 * @param $class_name string
 	 * @return string
 	 */
-	private static function getSourceClassName($class_name)
+	public static function getSourceClassName($class_name)
 	{
 		//todo wait for #88021 resolved
 		//$source_class_name = Class_Builder::sourceClassName($class_name);
