@@ -40,11 +40,18 @@ trait Annoted
 	/**
 	 * @param $annotation_name string
 	 * @param $annotation      Annotation
+	 * @param $once            boolean true to add only once, false otherwise
 	 */
-	public function addAnnotation($annotation_name, Annotation $annotation)
+	public function addAnnotation($annotation_name, Annotation $annotation, $once = true)
 	{
-		$path = $this->getAnnotationCachePath();
-		self::$annotations_cache[$path[0]][$path[1]][$annotation_name][true][] = $annotation;
+		// before to add the annotation in the cache, we should fill the cache if it is empty
+		// so we read annotation values
+		$annotations = $this->getAnnotations($annotation_name);
+		// now we can add the annotation in the cache
+		if (!$once || !in_array($annotation, $annotations)) {
+			$path = $this->getAnnotationCachePath();
+			self::$annotations_cache[$path[0]][$path[1]][$annotation_name][true][] = $annotation;
+		}
 	}
 
 	//--------------------------------------------------------------------------------- getAnnotation
