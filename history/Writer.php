@@ -7,7 +7,10 @@ use ITRocks\Framework\Dao\Data_Link;
 use ITRocks\Framework\Dao\Data_Link\Identifier_Map;
 use ITRocks\Framework\History;
 use ITRocks\Framework\Mapper\Component;
+use ITRocks\Framework\Reflection\Annotation;
+use ITRocks\Framework\Reflection\Annotation\Property\Link_Annotation;
 use ITRocks\Framework\Reflection\Annotation\Property\Store_Annotation;
+use ITRocks\Framework\Reflection\Link_Class;
 use ITRocks\Framework\Reflection\Reflection_Class;
 use ITRocks\Framework\Reflection\Reflection_Property;
 use ITRocks\Framework\Tools\Date_Time;
@@ -153,43 +156,28 @@ abstract class Writer
 		);
 		$history = [];
 		$class = new Reflection_Class(get_class($before));
-		self::createHistoryForClass($after, $before, $after, $history, $history_class, $class, '');
+		self::createHistoryForClass($after, $before, $after, $history, $history_class, $class);
 		return $history;
 	}
 
 	//------------------------------------------------------------------------- createHistoryForClass
 	/**
-	 * @param $main          object
-	 * @param $before        object|null
-	 * @param $after         object|null
-	 * @param $history       History[]
-	 * @param $history_class Reflection_Class
-	 * @param $class         Reflection_Class
-	 * @param $prefix        string prefix path for properties of collection/map/components
+	 * @param $main            object
+	 * @param $before          object|null
+	 * @param $after           object|null
+	 * @param $history         History[]
+	 * @param $history_class   Reflection_Class
+	 * @param $class           Reflection_Class
+	 * @param $prefix          string prefix path for properties of collection/map/components
+	 * @param $parent_property Reflection_Property|null
 	 */
 	private static function createHistoryForClass($main, $before, $after, &$history,
-		$history_class, $class, $prefix)
+		$history_class, $class, $prefix = '', $parent_property = null)
 	{
 		// we only want to parse accessible properties, not private
 		foreach ($class->getProperties([T_EXTENDS, T_USE, Reflection_Class::T_SORT]) as $property) {
 			$property_path = $prefix . $property->name;
-			if (self::shouldBeHistorized(get_class($main), $property, $property_path)) {
-				$old_value = $property->getValue($before);
-				$new_value = $property->getValue($after);
-				if (is_array($old_value)) {
-					$old_value = join(', ', $old_value);
-				}
-				if (is_array($new_value)) {
-					$new_value = join(', ', $new_value);
-				}
-				if (self::areDifferent($property, $old_value, $new_value)) {
-					$history[] = Builder::create(
-						$history_class->name,
-						[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
-					);
-				}
-			}
-			elseif (self::shouldGoDeeperFor($property)) {
+			if (self::shouldGoDeeperFor($property, $parent_property)) {
 				$type = $property->getType();
 				$sub_class   = $property->getType()->asReflectionClass();
 				$sub_before_array = $property->getValue($before);
@@ -206,9 +194,25 @@ abstract class Writer
 				$sub_after  = reset($sub_after_array);
 				while ($sub_before !== false || $sub_after !== false) {
 					self::createHistoryForClass($main, $sub_before, $sub_after, $history,
-						$history_class, $sub_class, $property_path . DOT);
+						$history_class, $sub_class, $property_path . DOT, $property);
 					$sub_before = next($sub_before_array);
 					$sub_after  = next($sub_after_array);
+				}
+			}
+			elseif (self::shouldBeHistorized(get_class($main), $property, $property_path)) {
+				$old_value = $property->getValue($before);
+				$new_value = $property->getValue($after);
+				if (is_array($old_value)) {
+					$old_value = join(', ', $old_value);
+				}
+				if (is_array($new_value)) {
+					$new_value = join(', ', $new_value);
+				}
+				if (self::areDifferent($property, $old_value, $new_value)) {
+					$history[] = Builder::create(
+						$history_class->name,
+						[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
+					);
 				}
 			}
 		}
@@ -218,15 +222,16 @@ abstract class Writer
 	/**
 	 * @param $object object
 	 * @param $class  Reflection_Class
+	 * @param $parent_property Reflection_Property|null
 	 * @todo optimize expansion by only expanding properties to be historized
 	 */
-	private static function expand($object, $class)
+	private static function expand($object, $class, $parent_property = null)
 	{
 		// call getter for collections and maps in order to get the full value before write
 		// we only want to parse accessible properties, not private
 		foreach ($class->getProperties([T_EXTENDS, T_USE]) as $property) {
-			$type = $property->getType();
-			if (self::shouldGoDeeperFor($property)) {
+			if (self::shouldGoDeeperFor($property, $parent_property)) {
+				$type = $property->getType();
 				$sub_class = $type->asReflectionClass();
 				$value = $property->getValue($object);
 
@@ -255,7 +260,7 @@ abstract class Writer
 				$values = (is_array($value)) ? $value : [$value];
 				foreach($values as $value) {
 					if ($value) {
-						self::expand($value, $sub_class);
+						self::expand($value, $sub_class, $property);
 					}
 				}
 			}
@@ -313,21 +318,40 @@ abstract class Writer
 	//----------------------------------------------------------------------------- shouldGoDeeperFor
 	/**
 	 * @param $property Reflection_Property
+	 * @param $parent_property Reflection_Property|null
 	 * @return boolean
 	 */
-	private static function shouldGoDeeperFor($property)
+	private static function shouldGoDeeperFor($property, $parent_property)
 	{
 		// BAD !
 		if ($property->name =='composite_properties') {
 			return false;
 		}
+		if ($property->getAnnotation('composite')->value) {
+			return false;
+		}
 		$type = $property->getType();
+		if ($parent_property && $parent_property->getType()->isClass())
+		{
+			$type_parent = $parent_property->getType();
+			$class = new Reflection_Class($type_parent->getElementTypeAsString());
+			// if we are on a link class, we should not expand properties inherited class, only those of
+			// final class
+			if ($class->getAnnotation(Annotation\Class_\Link_Annotation::ANNOTATION)->class) {
+				$link_class = new Link_Class($type_parent->getElementTypeAsString());
+				$local_properties = array_keys($link_class->getLocalProperties());
+				if (!in_array($property->name, $local_properties)) {
+					return false;
+				}
+			}
+		}
 		$should_go_deeper =
 			(
-				$property->getAnnotation('component')->value
-				&& (!$type->isMultiple() || !$type->isMultipleString())
-			)
-			&& !$property->getAnnotation('composite')->value;
+				($property->getAnnotation('component')->value && !$type->isMultipleString())
+				|| ($property->getAnnotation(Link_Annotation::ANNOTATION)->value
+					== Link_Annotation::COLLECTION
+				)
+			);
 		return $should_go_deeper;
 	}
 
