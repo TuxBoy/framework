@@ -124,6 +124,88 @@ class Parser
 		}
 	}
 
+	//-------------------------------------------------------------------------------------- appendTo
+	/**
+	 * Similar to jQuery's append()/appendTo(): append some html at end of element matching selector
+	 *
+	 * The algorithm is able to find matching opening/closing tag for section#main in:
+	 * <section>
+	 * 	 <section id="main">
+	 * 		 <section>
+	 * 			 <section id="bar">
+	 * 				 <section>
+	 * 				 </section>
+	 * 			 </section>
+	 * 			 <section id="bar2">
+	 * 				 <section>
+	 * 				 </section>
+	 * 			 </section>
+	 * 		 </section>
+	 * 	 <!--will append here--></section>
+	 * 	 <section id="foo">
+	 * 		 <section>
+	 * 		 </section>
+	 * 	 </section>
+	 * </section>
+	 * <section id="blah">
+	 * 	 <section>
+	 * 	 </section>
+	 * </section>
+	 *
+	 * @param $selector string
+	 * @param $html     string
+	 */
+	public function appendTo($selector, $html)
+	{
+		$tag = $this->partsTag($this->selectorParts($selector));
+		$i = $j = $this->selectorPos($selector);
+		if ($i !== false) {
+			$stack = 1;
+			while ($stack && $j!==false) {
+				$j = $this->tagEndPos($j);
+				$found = $this->closingOrOpeningTag($tag, $j);
+				if (!$found) {
+					trigger_error("cannot append html. closing tag not found", E_USER_ERROR);
+				}
+				list($j, $type) = $found;
+				if ($type == 'opening') {
+					$stack++;
+				} else {
+					$stack--;
+				}
+			}
+			$this->buffer = substr($this->buffer, 0, $j) . $html . substr($this->buffer, $j);
+		}
+		else {
+			trigger_error("cannot append html. tag not found", E_USER_ERROR);
+		}
+	}
+
+	//--------------------------------------------------------------------------- closingOrOpeningTag
+	/**
+	 * @param $tag    string
+	 * @param $offset integer
+	 * @return bool|mixed[] false or [integer=position, string=type]
+	 */
+	private function closingOrOpeningTag($tag, $offset)
+	{
+		$i1 = strpos($this->buffer, '<' . $tag . '>', $offset);
+		$i2 = strpos($this->buffer, '<' . $tag . SP, $offset);
+		$i3 = strpos($this->buffer, '</' . $tag . '>', $offset);
+		// not found?
+		if ($i1 === false && $i2 === false && $i3 === false) {
+			return false;
+		}
+		// get the one with min offset and get its type
+		$len = strlen($this->buffer);
+		$i1 = min(($i1 !== false ? $i1 : $len), ($i2 !== false ? $i2 : $len));
+		$i3 = ($i3 !== false ? $i3 : $len);
+		if ($i1 < $i3) {
+			return [$i1, 'opening'];
+		}
+		return [$i3, 'closing'];
+	}
+
 	//------------------------------------------------------------------------------------ closingTag
 	/**
 	 * Search the next closing tag
@@ -143,7 +225,7 @@ class Parser
 		// skip identical tags, recursively, until they are all closed
 		$skip = 1;
 		do {
-			$j2 = $this->tagPos($tag, $j);
+			$j2 = $this->openingTagPos($tag, $j);
 			$j = strpos($this->buffer, '</' . $tag . '>', $j);
 			if (($at === 'after') && ($j !== false)) {
 				$j += strlen($tag) + 3;
@@ -389,6 +471,24 @@ class Parser
 		}
 	}
 
+	//--------------------------------------------------------------------------------- openingTagPos
+	/**
+	 * Search start position of the tag into buffer after offset position
+	 *
+	 * @param $tag    string ie 'div'
+	 * @param $offset integer starting position for search
+	 * @return integer|boolean false if not found
+	 */
+	private function openingTagPos($tag, $offset = 0)
+	{
+		$i1 = strpos($this->buffer, '<' . $tag . '>', $offset);
+		$i2 = strpos($this->buffer, '<' . $tag . SP, $offset);
+		if (($i1 === false) || (($i2 !== false) && ($i2 < $i1))) {
+			$i1 = $i2;
+		}
+		return $i1;
+	}
+
 	//-------------------------------------------------------------------------------------- partsTag
 	/**
 	 * Returns element name from parts. 'div' will be the default if there is no element part.
@@ -577,7 +677,7 @@ class Parser
 		$attributes = ['#' => 'id', DOT => 'class', '[' => ''];
 		$parts = $this->selectorParts($selector);
 		$tag = $this->partsTag($parts);
-		while (($i = $this->tagPos($tag, $i)) !== false) {
+		while (($i = $this->openingTagPos($tag, $i)) !== false) {
 			// check attributes into <element ...>
 			$j = strpos($this->buffer, '>', $i);
 			$buffer = substr($this->buffer, $i, $j - $i + 1);
@@ -623,22 +723,17 @@ class Parser
 		return false;
 	}
 
-	//---------------------------------------------------------------------------------------- tagPos
+	//------------------------------------------------------------------------------------- tagEndPos
 	/**
-	 * Search next position of the tag into buffer
+	 * Search position into buffer of the end of a tag starting at offset position
+	 * This returns the position of the last char (ie '>') of the tag
 	 *
-	 * @param $tag string ie 'div'
-	 * @param $i   integer starting position for search
-	 * @return integer|boolean false if not found
+	 * @param $offset integer
+	 * @return bool|int
 	 */
-	private function tagPos($tag, $i = 0)
+	private function tagEndPos($offset)
 	{
-		$i1 = strpos($this->buffer, '<' . $tag . '>', $i);
-		$i2 = strpos($this->buffer, '<' . $tag . SP, $i);
-		if (($i1 === false) || (($i2 !== false) && ($i2 < $i1))) {
-			$i1 = $i2;
-		}
-		return $i1;
+		return strpos($this->buffer, '>', $offset);
 	}
 
 }

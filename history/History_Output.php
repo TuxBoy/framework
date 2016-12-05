@@ -22,17 +22,17 @@ trait History_Output
 	/**
 	 * @param $result     string
 	 * @param $parameters Parameters
-	 * @param $class_name string
+	 * @param $class_name string the main object class name
 	 */
 	public function output(&$result, Parameters $parameters, $class_name)
 	{
 		$object = $parameters->getMainObject();
 		$parameters->set(Parameter::IS_INCLUDED, true);
-		$parameters->set('history_tree', $this->historyTreeByUserDate($object, $class_name));
+		$parameters->set('history_tree', $this->historyTreeByUserDate($object, self::getHistoryClassName($class_name)));
 		$after = View::run($parameters->getObjects(), [], [], $class_name, 'history');
 		if (strpos($result, 'id="main"')) {
 			$parser = new Parser($result);
-			$parser->merge('section#main', $after);
+			$parser->appendTo('section#main', $after);
 			$result = $parser->buffer;
 		}
 		else {

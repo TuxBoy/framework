@@ -366,12 +366,12 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	/**
 	 * @param $result     string
 	 * @param $parameters Parameters
-	 * @param $class_name string
+	 * @param $class_name string the main object class name
 	 */
 	public function historyOutput(&$result, Parameters $parameters, $class_name)
 	{
 		if (self::isEnabled($class_name)) {
-			$this->output($result, $parameters, self::getHistoryClassName($class_name));
+			$this->output($result, $parameters, $class_name);
 		}
 	}
 
