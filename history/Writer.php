@@ -30,13 +30,28 @@ abstract class Writer
 	 */
 	private static $before_write;
 
-	//--------------------------------------------------------------------------------- $history_date
+	//-------------------------------------------------------------------------------- $history_dates
 	/**
 	 * Date to set in history entries for a given class and identifier
 	 * @example [User::class][12345] = Date_Time()
 	 * @var Date_Time[][]
 	 */
 	private static $history_dates;
+
+	/**
+	 * List of processed classes with Link_Class as value or false if not link class
+	 *
+	 * @var mixed[] [class_name => Link_Class|false]
+	 */
+	private static $linked_classes;
+
+	//----------------------------------------------------------------------------- $local_properties
+	/**
+	 * Cache of local properties for link class
+	 *
+	 * @var string[][] [class_name => [property_name, property_name, ...]]
+	 */
+	private static $local_properties;
 
 	//------------------------------------------------------------------------------------ afterWrite
 	/**
@@ -103,23 +118,27 @@ abstract class Writer
 
 	//---------------------------------------------------------------------------- areDifferentObject
 	/**
-	 * @param $old_value Date_Time
-	 * @param $new_value Date_Time
+	 * @param $old_value object|null
+	 * @param $new_value object|null
 	 * @return bool
 	 */
 	private static function areDifferentObject($old_value, $new_value)
 	{
 		return (
-			(is_object($old_value) || is_object($new_value))
-			&& (
-				(
-					(Dao::getObjectIdentifier($old_value) || Dao::getObjectIdentifier($new_value))
-					&& !Dao::is($old_value, $new_value)
-				)
-				|| (
-					($old_value instanceof Stringable)
-					&& ($new_value instanceof Stringable)
-					&& strval($old_value) != strval($new_value)
+			(is_object($old_value) && !is_object($new_value))
+			|| (!is_object($old_value) && is_object($new_value))
+			|| (
+				(is_object($old_value) && is_object($new_value))
+				&& (
+					(
+						($old_value instanceof Stringable)
+						&& ($new_value instanceof Stringable)
+						&& strval($old_value) != strval($new_value)
+					)
+					|| (
+						(Dao::getObjectIdentifier($old_value) || Dao::getObjectIdentifier($new_value))
+						&& !Dao::is($old_value, $new_value)
+					)
 				)
 			)
 		);
@@ -162,23 +181,24 @@ abstract class Writer
 
 	//------------------------------------------------------------------------- createHistoryForClass
 	/**
-	 * @param $main            object
-	 * @param $before          object|null
-	 * @param $after           object|null
-	 * @param $history         History[]
-	 * @param $history_class   Reflection_Class
-	 * @param $class           Reflection_Class
-	 * @param $prefix          string prefix path for properties of collection/map/components
-	 * @param $parent_property Reflection_Property|null
+	 * @param $main                 object
+	 * @param $before               object|null
+	 * @param $after                object|null
+	 * @param $history              History[]
+	 * @param $history_class        Reflection_Class
+	 * @param $class                Reflection_Class
+	 * @param $path_prefix          string
+	 * @param $property_name_prefix string
 	 */
 	private static function createHistoryForClass($main, $before, $after, &$history,
-		$history_class, $class, $prefix = '', $parent_property = null)
+		$history_class, $class, $path_prefix = '', $property_name_prefix = '')
 	{
 		// we only want to parse accessible properties, not private
 		foreach ($class->getProperties([T_EXTENDS, T_USE, Reflection_Class::T_SORT]) as $property) {
-			$property_path = $prefix . $property->name;
-			if (self::shouldGoDeeperFor($property, $parent_property)) {
-				$type = $property->getType();
+			$property_path = $path_prefix . $property->name;
+			$property_name = $property_name_prefix . $property->name;
+			$type = $property->getType();
+			if (self::shouldGoDeeperFor($property)) {
 				$sub_class   = $property->getType()->asReflectionClass();
 				$sub_before_array = $property->getValue($before);
 				$sub_after_array  = $property->getValue($after);
@@ -192,9 +212,12 @@ abstract class Writer
 					);
 				$sub_before = reset($sub_before_array);
 				$sub_after  = reset($sub_after_array);
+				$i = 0;
 				while ($sub_before !== false || $sub_after !== false) {
+					$i++;
+					$index = $type->isMultiple() ? "[$i]" : '';
 					self::createHistoryForClass($main, $sub_before, $sub_after, $history,
-						$history_class, $sub_class, $property_path . DOT, $property);
+						$history_class, $sub_class, $property_path . DOT, $property_name . $index . DOT);
 					$sub_before = next($sub_before_array);
 					$sub_after  = next($sub_after_array);
 				}
@@ -202,17 +225,39 @@ abstract class Writer
 			elseif (self::shouldBeHistorized(get_class($main), $property, $property_path)) {
 				$old_value = $property->getValue($before);
 				$new_value = $property->getValue($after);
-				if (is_array($old_value)) {
-					$old_value = join(', ', $old_value);
+				if ($type->isMultiple() && !$type->isMultipleString()) {
+					if (!$old_value) {
+						$old_value = [];
+					}
+					if (!$new_value) {
+						$new_value = [];
+					}
+					$sub_before = reset($old_value);
+					$sub_after  = reset($new_value);
+					while ($sub_before !== false || $sub_after !== false) {
+						if (self::areDifferent($property, $sub_before, $sub_after)) {
+							$history[] = Builder::create(
+								$history_class->name,
+								[$main, $property_path, $sub_before, $sub_after, self::getHistoryDate($main)]
+							);
+						}
+						$sub_before = next($old_value);
+						$sub_after  = next($new_value);
+					}
 				}
-				if (is_array($new_value)) {
-					$new_value = join(', ', $new_value);
-				}
-				if (self::areDifferent($property, $old_value, $new_value)) {
-					$history[] = Builder::create(
-						$history_class->name,
-						[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
-					);
+				else {
+					if (is_array($old_value)) {
+						$old_value = join(', ', $old_value);
+					}
+					if (is_array($new_value)) {
+						$new_value = join(', ', $new_value);
+					}
+					if (self::areDifferent($property, $old_value, $new_value)) {
+						$history[] = Builder::create(
+							$history_class->name,
+							[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
+						);
+					}
 				}
 			}
 		}
@@ -222,15 +267,14 @@ abstract class Writer
 	/**
 	 * @param $object object
 	 * @param $class  Reflection_Class
-	 * @param $parent_property Reflection_Property|null
 	 * @todo optimize expansion by only expanding properties to be historized
 	 */
-	private static function expand($object, $class, $parent_property = null)
+	private static function expand($object, $class)
 	{
 		// call getter for collections and maps in order to get the full value before write
 		// we only want to parse accessible properties, not private
-		foreach ($class->getProperties([T_EXTENDS, T_USE]) as $property) {
-			if (self::shouldGoDeeperFor($property, $parent_property)) {
+		foreach (($properties = $class->getProperties([T_EXTENDS, T_USE])) as $property) {
+			if (self::shouldGoDeeperFor($property)) {
 				$type = $property->getType();
 				$sub_class = $type->asReflectionClass();
 				$value = $property->getValue($object);
@@ -260,7 +304,7 @@ abstract class Writer
 				$values = (is_array($value)) ? $value : [$value];
 				foreach($values as $value) {
 					if ($value) {
-						self::expand($value, $sub_class, $property);
+						self::expand($value, $sub_class);
 					}
 				}
 			}
@@ -287,6 +331,68 @@ abstract class Writer
 		return self::$history_dates[$class_name][$identifier];
 	}
 
+	//--------------------------------------------------------------------------------- isLinkedClass
+	/**
+	 * Returns true if property is member of a link class, false otherwise
+	 *
+	 * @param $property Reflection_Property
+	 * @return boolean
+	 */
+	private static function isLinkedClass($property)
+	{
+		/*$type = $property->getType();
+		if ($type->isClass()) {
+			$class_name = $type->getElementTypeAsString();*/
+		$class_name = $property->final_class;
+			if (!isset(self::$linked_classes[$class_name])) {
+				$class = new Reflection_Class($class_name);
+				if ($class->getAnnotation(Annotation\Class_\Link_Annotation::ANNOTATION)->class) {
+					self::$linked_classes[$class_name] = new Link_Class($class_name);
+				}
+				else {
+					self::$linked_classes[$class_name] = false;
+				}
+			}
+			return self::$linked_classes[$class_name] ? true : false;
+		/*}
+		return false;*/
+	}
+
+	//------------------------------------------------------------------------------- isLocalProperty
+	/**
+	 * Returns true if property is of a link class and is a local property of this link class
+	 *
+	 * @param $property Reflection_Property
+	 * @return boolean
+	 */
+	private static function isLocalProperty($property)
+	{
+		/*$type = $property->getType();
+		if ($type->isClass()) {
+			$class_name = $type->getElementTypeAsString();*/
+		$class_name = $property->final_class;
+			if (!isset(self::$local_properties[$class_name])) {
+				if (isset(self::$linked_classes[$class_name]) && self::$linked_classes[$class_name]) {
+					$link_class = self::$linked_classes[$class_name];
+					$local_properties = array_diff(
+						array_keys($link_class->getLocalProperties()),
+						[$link_class->getCompositeProperty()->name]
+					);
+					self::$local_properties[$class_name] = $local_properties;
+				}
+				else {
+					self::$local_properties[$class_name] = [];
+				}
+			}
+			if (isset(self::$local_properties[$class_name])
+				&& in_array($property->name, self::$local_properties[$class_name])
+			) {
+				return true;
+			}
+		/*}*/
+		return false;
+	}
+
 	//---------------------------------------------------------------------------- shouldBeHistorized
 	/**
 	 * @param $class_name    string the main object class name
@@ -310,7 +416,12 @@ abstract class Writer
 			// component property itself is not historized (but inner properties could be)
 			&& !$property->getAnnotation('component')->value
 			// composite property is not historized
-			&& !$property->getAnnotation('composite')->value
+			&& (
+				!$property->getAnnotation('composite')->value
+				|| (self::isLinkedClass($property) && self::isLocalProperty($property))
+			)
+			// composite and inherited properties of a linked class are not historized
+			&& (!self::isLinkedClass($property) || self::isLocalProperty($property))
 		);
 		return $should_be_historized;
 	}
@@ -318,33 +429,23 @@ abstract class Writer
 	//----------------------------------------------------------------------------- shouldGoDeeperFor
 	/**
 	 * @param $property Reflection_Property
-	 * @param $parent_property Reflection_Property|null
 	 * @return boolean
 	 */
-	private static function shouldGoDeeperFor($property, $parent_property)
+	private static function shouldGoDeeperFor($property)
 	{
-		// BAD !
+		// bypass composite_properties
 		if ($property->name =='composite_properties') {
 			return false;
 		}
-		if ($property->getAnnotation('composite')->value) {
+		// bypass composite, but only if class is not a linked class
+		if ($property->getAnnotation('composite')->value && !self::isLinkedClass($property) ) {
+			return false;
+		}
+		// for linked class, bypass the composite property and properties of inherited class
+		if (self::isLinkedClass($property) && !self::isLocalProperty($property)) {
 			return false;
 		}
 		$type = $property->getType();
-		if ($parent_property && $parent_property->getType()->isClass())
-		{
-			$type_parent = $parent_property->getType();
-			$class = new Reflection_Class($type_parent->getElementTypeAsString());
-			// if we are on a link class, we should not expand properties inherited class, only those of
-			// final class
-			if ($class->getAnnotation(Annotation\Class_\Link_Annotation::ANNOTATION)->class) {
-				$link_class = new Link_Class($type_parent->getElementTypeAsString());
-				$local_properties = array_keys($link_class->getLocalProperties());
-				if (!in_array($property->name, $local_properties)) {
-					return false;
-				}
-			}
-		}
 		$should_go_deeper =
 			(
 				($property->getAnnotation('component')->value && !$type->isMultipleString())
