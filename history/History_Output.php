@@ -18,6 +18,18 @@ use ITRocks\Framework\View;
 trait History_Output
 {
 
+	//----------------------------------------------------------------------------- cleanPropertyName
+	/**
+	 * Remove index parts of property name
+	 *
+	 * @param $property_name string
+	 * @return string
+	 */
+	private function cleanPropertyName($property_name)
+	{
+		return preg_replace('/\[[0-9]*\]/', '', $property_name);
+	}
+
 	//---------------------------------------------------------------------------------------- output
 	/**
 	 * @param $result     string
@@ -53,10 +65,10 @@ trait History_Output
 	private function historyTreeByUserDate($object, $class_name)
 	{
 		$object_class_name = get_class($object);
-		$property_name = call_user_func([$class_name, 'getObjectPropertyName']);
+		$object_property_name = call_user_func([$class_name, 'getObjectPropertyName']);
 		/** @noinspection PhpUndefinedMethodInspection */
 		$history_entries = Dao::search(
-			[$property_name => Dao::getObjectIdentifier($object)],
+			[$object_property_name => Dao::getObjectIdentifier($object)],
 			$class_name
 		);
 
@@ -74,10 +86,11 @@ trait History_Output
 		$key = -1;
 		$user = null;
 		foreach ($history_entries as $history_entry) {
-			if (!Manager::isToBeHistorized($object_class_name, $history_entry->property_name)) {
+			$property_name = $this->cleanPropertyName($history_entry->property_name);
+			if (!Manager::isToBeHistorized($object_class_name, $property_name)) {
 				continue;
 			}
-			$property = new Reflection_Property($object_class_name, $history_entry->property_name);
+			$property = new Reflection_Property($object_class_name, $property_name);
 			$user_annotation = $property
 				? $property->getListAnnotation(User_Annotation::ANNOTATION) : null;
 			if (!$user_annotation || (
