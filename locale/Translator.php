@@ -204,7 +204,12 @@ class Translator
 		}
 		$translation = $this->chooseTranslation($translations, $context)
 			?: $this->defaultTranslation($text);
+		// store text for context to cache
 		$this->cache[$text][$context] = $translation;
+		// also, if default cache text is empty, update with this translation
+		if (isset($this->cache[$text]['']) && !strlen($this->cache[$text][''])) {
+			$this->cache[$text][''] = $translation;
+		}
 		return strIsCapitals($text[0]) ? ucfirsta($translation) : $translation;
 	}
 
