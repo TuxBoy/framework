@@ -44,7 +44,7 @@ class Generator extends Cache implements Registerable, Updatable
 	 *
 	 * @var Reflection_Source[]
 	 */
-	public $source_classes = [];
+	private $source_classes = [];
 
 	//--------------------------------------------------------------------------------- addGenerative
 	/**
@@ -94,14 +94,16 @@ class Generator extends Cache implements Registerable, Updatable
 	 */
 	private function generateClass($class_name, $source)
 	{
-		$this->generateSourceClass($class_name, $source);
-
 		/** @var $compiler Compiler */
 		static $compiler;
 		if (!isset($compiler)) {
 			$compiler = Session::current()->plugins->get(Compiler::class);
 		}
-		$compiler->addSource($source);
+
+		$has_changed = $this->generateSourceClass($class_name, $source);
+		if ($has_changed) {
+			$compiler->addSource($source);
+		}
 	}
 
 	//--------------------------------------------------------------------------- generateSourceClass
@@ -110,18 +112,34 @@ class Generator extends Cache implements Registerable, Updatable
 	 *
 	 * @param $class_name string
 	 * @param $source     Reflection_Source
+	 * @return boolean
 	 */
 	private function generateSourceClass($class_name, $source)
 	{
+		$has_changed = false;
 		$cache_dir = $this->getCacheDir();
 		$file_path = $cache_dir . SL . Names::classToPath($class_name) . '.php';
 		$absolute_file_path = Paths::$file_root . Paths::$project_uri . SL . $file_path;
 		Files::mkdir(dirname($absolute_file_path));
-		$fd = fopen($absolute_file_path, 'w');
+		$fd = fopen($absolute_file_path, 'c+');
 		if ($fd) {
-			fputs($fd, $source->getSource());
+			$current_source = false;
+			if (filesize($absolute_file_path)) {
+				$current_source = fread($fd, filesize($absolute_file_path));
+			}
+			// write new source if it differs from current source
+			if ($current_source != $source->getSource()) {
+				ftruncate($fd, 0);
+				rewind($fd);
+				fputs($fd, $source->getSource());
+				$has_changed = true;
+			}
 			fclose($fd);
 		}
+		else {
+			trigger_error('unable to write generated file', E_USER_ERROR);
+		}
+		return $has_changed;
 	}
 
 	//-------------------------------------------------------------------------------------- register
