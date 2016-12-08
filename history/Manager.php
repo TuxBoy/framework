@@ -358,7 +358,9 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	{
 		//todo wait for #88021 resolved
 		//$source_class_name = Class_Builder::sourceClassName($class_name);
-		$source_class_name = self::$source_classes[$class_name];
+		$source_class_name = isset(self::$source_classes[$class_name])
+			? self::$source_classes[$class_name]
+			: false;
 		return $source_class_name;
 	}
 
