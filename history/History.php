@@ -1,9 +1,12 @@
 <?php
 namespace ITRocks\Framework;
 
+use Exception;
+use ITRocks\Framework\History\History_Output;
 use ITRocks\Framework\History\Manager;
 use ITRocks\Framework\History\Prototype;
 use ITRocks\Framework\Locale\Loc;
+use ITRocks\Framework\Reflection\Reflection_Property;
 use ITRocks\Framework\Tools\Date_Time;
 
 /**
@@ -28,6 +31,7 @@ abstract class History
 	/**
 	 * Name of the property linking to main object
 	 * You must override this constant in inherited classes!
+	 *
 	 * @see Prototype\History
 	 */
 	const OBJECT_PROPERTY_NAME = 'object';
@@ -75,6 +79,10 @@ abstract class History
 
 	//-------------------------------------------------------------------------------- $property_name
 	/**
+	 * This is path of a property value accessible from main object.
+	 * Note : it can contain some index parts like [i]
+	 *
+	 * @example my_property.my_collection[3].my_sub_property
 	 * @var string
 	 */
 	public $property_name;
@@ -127,6 +135,66 @@ abstract class History
 	{
 		return empty($this->date) ? '' : Loc::dateToLocale($this->date);
 	}
+
+	//--------------------------------------------------------------------------------------- display
+	/**
+	 * Returns a locale formatted value of old value or new value
+	 *
+	 * @param $property_name string old_value|new_value
+	 * @return string
+	 * @throws Exception
+	 */
+	private function display($property_name)
+	{
+		if (!in_array($property_name, ['new_value', 'old_value'])) {
+			throw new Exception("bad property name given :  should be old_value|new_value");
+		}
+		$property = new Reflection_Property(
+			Manager::getObjectClassName(get_class($this)),
+			History_Output::cleanPropertyName($this->property_name)
+		);
+		$type = $property->getType();
+		$value = $this->$property_name;
+		if ($type->isDateTime()) {
+			$value = $value ? new Date_Time($value) : null;
+		}
+		elseif ($type->isClass()) {
+			$class_name = $type->getElementTypeAsString();
+			if ($value) {
+				$value = strval(Dao::read($value, $class_name));
+			}
+		}
+		elseif ($type->isBoolean()) {
+			$value = $value ? 'yes' : 'no';
+		}
+		if ($value) {
+			$value = Loc::propertyToLocale($property, $value);
+		}
+		return strval($value);
+	}
+
+	//------------------------------------------------------------------------------- displayNewValue
+	/**
+	 * Returns the old value formatted with locale
+	 *
+	 * @return string
+	 */
+	public function displayNewValue()
+	{
+		return $this->display('new_value');
+	}
+
+	//------------------------------------------------------------------------------- displayOldValue
+	/**
+	 * Returns the old value formatted with locale
+	 *
+	 * @return string
+	 */
+	public function displayOldValue()
+	{
+		return $this->display('old_value');
+	}
+
 
 	//---------------------------------------------------------------------------------- getHighlight
 	/* @noinspection PhpUnusedPrivateMethodInspection @getter */

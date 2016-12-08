@@ -9,31 +9,8 @@
 
 	<div class="{@class.short.lower} business_object history window">
 		<h2>|¦History¦ ¦{@class.short.lower}¦|</h2>
-		<ul>
-			<!--history_tree-->
-			<li>
-				<h3>{user.first_name} {user.last_name}</h3>
-				<ul>
-					<!--history-->
-					<li>
-						<h4>{@key.@date.@loc}</h4>
-						<ul>
-							<!--.-->
-							<li class="{property_name} {highlight}">
-								<span class="property name">|{property_name}|</span>
-								<span class="value">
-									<!--!isOldValueVoid?--><span class="old">{old_value}</span><!--!isOldValueVoid?-->
-									<!--!isNewValueVoid?--><span class="new">{new_value}</span><!--!isNewValueVoid?-->
-								</span>
-							</li>
-							<!--.-->
-						</ul>
-					</li>
-					<!--history-->
-				</ul>
-			</li>
-			<!--history_tree-->
-		</ul>
+		{/history/sort.html}
+		{/history/history_tree.html}
 	</div>
 
 <!--END-->
