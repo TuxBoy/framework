@@ -1,6 +1,7 @@
 <?php
 namespace ITRocks\Framework\History;
 
+use Exception;
 use ITRocks\Framework\Builder;
 use ITRocks\Framework\Dao;
 use ITRocks\Framework\Dao\Data_Link;
@@ -14,6 +15,7 @@ use ITRocks\Framework\Reflection\Link_Class;
 use ITRocks\Framework\Reflection\Reflection_Class;
 use ITRocks\Framework\Reflection\Reflection_Property;
 use ITRocks\Framework\Tools\Date_Time;
+use ITRocks\Framework\Tools\Names;
 use ITRocks\Framework\Tools\Stringable;
 
 /**
@@ -38,6 +40,7 @@ abstract class Writer
 	 */
 	private static $history_dates;
 
+	//------------------------------------------------------------------------------- $linked_classes
 	/**
 	 * List of processed classes with Link_Class as value or false if not link class
 	 *
@@ -170,13 +173,37 @@ abstract class Writer
 	 */
 	private static function createHistory($before, $after)
 	{
-		$history_class = new Reflection_Class(
-			Builder::className(Manager::getHistoryClassName(get_class($after)))
-		);
+		$history_class = new Reflection_Class(Manager::getHistoryClassName(get_class($after)));
 		$history = [];
 		$class = new Reflection_Class(get_class($before));
 		self::createHistoryForClass($after, $before, $after, $history, $history_class, $class);
 		return $history;
+	}
+
+	//---------------------------------------------------------------------------- createHistoryEntry
+	/**
+	 * Create a specific history entry for main object class_name for given property_path
+	 * Note: this does not check about property_path validity
+	 *
+	 * @param $object        object
+	 * @param $property_path string @example my_property.mycollection[i].my_sub_property
+	 * @param $old_value     string
+	 * @param $new_value     string
+	 * @return History
+	 * @throws Exception
+	 */
+	public static function createHistoryEntry($object, $property_path, $old_value, $new_value)
+	{
+		$history_class_name = Manager::getHistoryClassName(get_class($object));
+		if ($history_class_name) {
+			$history = Builder::create(
+				$history_class_name,
+				[$object, $property_path, $old_value, $new_value, self::getHistoryDate($object)]
+			);
+			Dao::write($history);
+			return $history;
+		}
+		throw new Exception("history not supported for " . Names::classToDisplay(get_class($object)));
 	}
 
 	//------------------------------------------------------------------------- createHistoryForClass
@@ -225,39 +252,25 @@ abstract class Writer
 			elseif (self::shouldBeHistorized(get_class($main), $property, $property_path)) {
 				$old_value = $property->getValue($before);
 				$new_value = $property->getValue($after);
+				// for multiple, format as array even if null
 				if ($type->isMultiple() && !$type->isMultipleString()) {
-					if (!$old_value) {
-						$old_value = [];
-					}
-					if (!$new_value) {
-						$new_value = [];
-					}
-					$sub_before = reset($old_value);
-					$sub_after  = reset($new_value);
-					while ($sub_before !== false || $sub_after !== false) {
-						if (self::areDifferent($property, $sub_before, $sub_after)) {
-							$history[] = Builder::create(
-								$history_class->name,
-								[$main, $property_path, $sub_before, $sub_after, self::getHistoryDate($main)]
-							);
-						}
-						$sub_before = next($old_value);
-						$sub_after  = next($new_value);
-					}
+					$old_values = (!$old_value ? [] : $old_value);
+					$new_values = (!$new_value ? [] : $new_value);
 				}
+				// for not multiple, if value is array then join values. format as array
 				else {
-					if (is_array($old_value)) {
-						$old_value = join(', ', $old_value);
-					}
-					if (is_array($new_value)) {
-						$new_value = join(', ', $new_value);
-					}
+					$old_values = [(is_array($old_value) ? join(', ', $old_value) : $old_value)];
+					$new_values = [(is_array($new_value) ? join(', ', $new_value) : $new_value)];
+				}
+				// loop on array to create entries
+				$old_value = reset($old_values);
+				$new_value  = reset($new_values);
+				while ($old_value !== false || $new_value !== false) {
 					if (self::areDifferent($property, $old_value, $new_value)) {
-						$history[] = Builder::create(
-							$history_class->name,
-							[$main, $property_path, $old_value, $new_value, self::getHistoryDate($main)]
-						);
+						$history[] = self::createHistoryEntry($main, $property_path, $old_value, $new_value);
 					}
+					$old_value = next($old_values);
+					$new_value  = next($new_values);
 				}
 			}
 		}
