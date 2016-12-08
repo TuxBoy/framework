@@ -6,10 +6,8 @@ use ITRocks\Framework\Controller\Parameters;
 use ITRocks\Framework\Dao;
 use ITRocks\Framework\History;
 use ITRocks\Framework\Html\Parser;
-use ITRocks\Framework\Locale\Loc;
 use ITRocks\Framework\Reflection\Annotation\Property\User_Annotation;
 use ITRocks\Framework\Reflection\Reflection_Property;
-use ITRocks\Framework\Tools\Date_Time;
 use ITRocks\Framework\View;
 
 /**
@@ -25,7 +23,7 @@ trait History_Output
 	 * @param $property_name string
 	 * @return string
 	 */
-	private function cleanPropertyName($property_name)
+	public static function cleanPropertyName($property_name)
 	{
 		return preg_replace('/\[[0-9]*\]/', '', $property_name);
 	}
@@ -82,51 +80,47 @@ trait History_Output
 				: $a->date->diff($b->date)->compare();
 			return $compare;
 		});
+
+		// remove undesired entries
+		$history_entries = array_filter($history_entries,
+			function (History $history) use ($object_class_name) {
+				$property_name = $this->cleanPropertyName($history->property_name);
+				// not to be historized ? bypass this entry
+				if (!Manager::isToBeHistorized($object_class_name, $property_name)) {
+					return false;
+				}
+				$property = new Reflection_Property($object_class_name, $property_name);
+				$user_annotation = $property
+					? $property->getListAnnotation(User_Annotation::ANNOTATION) : null;
+				// hidden or invisible ? bypass this entry
+				if ($user_annotation
+					&& (
+						$user_annotation->has(User_Annotation::HIDDEN)
+						|| $user_annotation->has(User_Annotation::INVISIBLE)
+					)
+				) {
+					return false;
+				}
+				// keep this entry
+				return true;
+			}
+		);
+
+		// build sorted tree
 		$history_tree = [];
 		$key = -1;
 		$user = null;
-		foreach ($history_entries as $history_entry) {
-			$property_name = $this->cleanPropertyName($history_entry->property_name);
-			if (!Manager::isToBeHistorized($object_class_name, $property_name)) {
-				continue;
+		array_walk($history_entries, function (History $history) use (&$history_tree, &$key, &$user) {
+			if (!Dao::is($history->user, $user)) {
+				$key++;
+				$user = $history->user;
+				$history_tree[$key] = ['user' => $user];
 			}
-			$property = new Reflection_Property($object_class_name, $property_name);
-			$user_annotation = $property
-				? $property->getListAnnotation(User_Annotation::ANNOTATION) : null;
-			if (!$user_annotation || (
-				!$user_annotation->has(User_Annotation::HIDDEN)
-				&& !$user_annotation->has(User_Annotation::INVISIBLE)
-			)) {
-				$this->translateHistoryEntry($property, $history_entry);
-				if (!Dao::is($history_entry->user, $user)) {
-					$key++;
-					$user = $history_entry->user;
-					$history_tree[$key] = ['user' => $user];
-				}
-				$date_time = substr($history_entry->date->toISO(), 0, 16);
-				$history_tree[$key]['history'][$date_time][] = $history_entry;
-			}
-		}
-		return $history_tree;
-	}
+			$date_time = substr($history->date->toISO(), 0, 16);
+			$history_tree[$key]['history'][$date_time][] = $history;
+		});
 
-	//------------------------------------------------------------------------- translateHistoryEntry
-	/**
-	 * @param $property Reflection_Property
-	 * @param $history  History the history entry
-	 */
-	private function translateHistoryEntry($property, History $history)
-	{
-		if ($property->getType()->isDateTime()) {
-			$history->new_value = $history->new_value ? new Date_Time($history->new_value) : null;
-			$history->old_value = $history->old_value ? new Date_Time($history->old_value) : null;
-		}
-		if ($history->new_value) {
-			$history->new_value = Loc::propertyToLocale($property, $history->new_value);
-		}
-		if ($history->old_value) {
-			$history->old_value = Loc::propertyToLocale($property, $history->old_value);
-		}
+		return $history_tree;
 	}
 
 }
