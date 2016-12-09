@@ -22,9 +22,24 @@ use ITRocks\Framework\Widget\Output\Output_Controller;
 /**
  * History management plugin
  * Manage which class will support history and which properties to historize
+ *
  * If excepted properties are defined, all properties except those one will be historized
  * If only properties are defined, only those properties will be historized
  * If both defined, only "only" properties that are not "unobserved" will be historized
+ *
+ * Note: only source class name should be declared, no built class name (untested)
+ *
+ * @example  configuration :
+ * Framework\History\Manager::class => [
+ *   Vendor\Project\User::class => [
+ *     Framework\History\Manager::HIGHLIGHT => ['login'],
+ *     Framework\History\Manager::EXCEPTED => ['password'],
+ *   ],
+ *   Vendor\Project\Contract::class => [
+ *     Framework\History\Manager::HIGHLIGHT => ['closing_date', 'status'],
+ *     Framework\History\Manager::ONLY => ['closing_date', 'comment', 'signed', 'status'],
+ *   ],
+ * ],
  */
 class Manager implements Registerable, Configurable, Activable, IGenerative
 {
@@ -105,45 +120,48 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	public function __construct($configuration)
 	{
 		$used_class_names = [];
-		if (isset($configuration[self::CLASSES])) {
-			self::$classes = [];
-			//for each class, if class has a built version, we store built class name instead
-			foreach($configuration[self::CLASSES] as $class_name) {
-				$built_class_name = (Class_Builder::isBuilt($class_name)) ? $class_name
-					: Class_Builder::builtClassName($class_name);
-				if ($built_class_name && class_exists($built_class_name)) {
-					$used_class_names[$class_name] = self::$classes[] = $built_class_name;
-					self::$source_classes[$built_class_name] = $class_name;
+		foreach($configuration as $class_name => $class_configuration)
+		{
+			// case where there is no class configuration and class name is value instead of key
+			if (is_integer($class_name) && is_string($class_configuration)) {
+				$class_name = $class_configuration;
+				$class_configuration = [];
+			}
+			if (!$class_configuration) {
+				$class_configuration = [];
+			}
+
+			// store enabled class with source and built information
+			self::$source_classes[$class_name] = $class_name;
+			$built_class_name = (Class_Builder::isBuilt($class_name)) ? $class_name
+				: Class_Builder::builtClassName($class_name);
+			if ($built_class_name && class_exists($built_class_name)) {
+				self::$source_classes[$built_class_name] = $class_name;
+				self::$classes[] = $used_class_name = $built_class_name;
+			}
+			else {
+				self::$classes[] = $used_class_name = $class_name;
+			}
+			$used_class_names[$class_name] = $used_class_name;
+
+			// store excepted properties for the class
+			if (isset($class_configuration[self::EXCEPTED])) {
+				foreach($class_configuration[self::EXCEPTED] as $property_name) {
+					self::$excepted_properties[$used_class_name] = $property_name;
 				}
-				else {
-					$used_class_names[$class_name] = self::$classes[] = $class_name;
+			}
+
+			// store highlighted properties for the
+			if (isset($class_configuration[self::HIGHLIGHT])) {
+				foreach($class_configuration[self::HIGHLIGHT] as $property_name) {
+					self::$highlighted_properties[$used_class_name] = $property_name;
 				}
-				self::$source_classes[$class_name] = $class_name;
 			}
-		}
-		if (isset($configuration[self::EXCEPTED])) {
-			self::$excepted_properties = [];
-			foreach($configuration[self::EXCEPTED] as $class_name => $excepted) {
-				$used_class_name = $used_class_names[$class_name];
-				self::$excepted_properties[$used_class_name] = $excepted;
-			}
-		}
-		if (isset($configuration[self::HIGHLIGHT])) {
-			self::$highlighted_properties = [];
-			foreach($configuration[self::HIGHLIGHT] as $class_name => $highlight) {
-				$used_class_name = $used_class_names[$class_name];
-				self::$highlighted_properties[$used_class_name] = $highlight;
-			}
-		}
-		if (isset($configuration[self::ONLY])) {
-			self::$only_properties = [];
-			foreach($configuration[self::ONLY] as $class_name => $only) {
-				$used_class_name = $used_class_names[$class_name];
-				self::$only_properties[$used_class_name] = $only;
-			}
-			foreach(self::$only_properties as $class_name => $only) {
-				if (!in_array($class_name, self::$classes)) {
-					self::$classes[] = $class_name;
+
+			// store only properties for the class
+			if (isset($class_configuration[self::ONLY])) {
+				foreach($class_configuration[self::ONLY] as $property_name) {
+					self::$only_properties[$used_class_name] = $property_name;
 				}
 			}
 		}
