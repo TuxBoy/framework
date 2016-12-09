@@ -63,6 +63,10 @@ abstract class Writer
 	 */
 	public static function afterWrite($object, Data_Link $link)
 	{
+		// avoid to historize the (inherited) object of a link class
+		if (!Manager::isEnabled(get_class($object))) {
+			return;
+		}
 		$class_name = Builder::className(get_class($object));
 		if (
 			($link instanceof Identifier_Map)
@@ -154,6 +158,10 @@ abstract class Writer
 	 */
 	public static function beforeWrite($object, Data_Link $link)
 	{
+		// avoid to historize the (inherited) object of a link class
+		if (!Manager::isEnabled(get_class($object))) {
+			return;
+		}
 		// this begin() will be solved into afterWrite()
 		Dao::begin();
 		if (($link instanceof Identifier_Map) && ($identifier = $link->getObjectIdentifier($object))) {
