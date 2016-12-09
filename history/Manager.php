@@ -231,10 +231,6 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 		else {
 			self::$enabled_classes[] = $used_class_name = $class_name;
 		}
-		// init properties configuration for class name
-		self::$excepted_properties[$used_class_name] = [];
-		self::$highlighted_properties[$used_class_name] = [];
-		self::$only_properties[$used_class_name] = [];
 	}
 
 	//-------------------------------------------------------------------------------------- generate
