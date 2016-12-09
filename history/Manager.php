@@ -45,17 +45,14 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 {
 	use History_Output;
 
-	//--------------------------------------------------------------------------------------- CLASSES
-	const CLASSES   = 'classes';
-
 	//-------------------------------------------------------------------------------------- EXCEPTED
-	const EXCEPTED  = 'excepted';
+	const EXCEPTED  = 'excepted_properties';
 
 	//------------------------------------------------------------------------------------- HIGHLIGHT
-	const HIGHLIGHT = 'highlight';
+	const HIGHLIGHT = 'highlighted_properties';
 
 	//------------------------------------------------------------------------------------------ ONLY
-	const ONLY      = 'only';
+	const ONLY      = 'only_properties';
 
 	//--------------------------------------------------------------------------- $added_to_generator
 	/**
@@ -63,11 +60,21 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	 */
 	private $added_to_generator = false;
 
-	//-------------------------------------------------------------------------------------- $classes
+	//------------------------------------------------------------------------------ $enabled_classes
 	/**
+	 * List of class names that are enabled for history
+	 *
+	 * Note: There are 2 entries per class. 1 with key = source name, 1 with built name if it exists.
+	 *       Value is declared class name in both entries.
+	 * @example
+	 * [
+	 *  'ITRocks\Framework\User'              = 'ITRocks\Framework\User',
+	 *  'Vendor\Project\Built\Framework\User' = 'ITRocks\Framework\User'
+	 * ]
+	 *
 	 * @var string[] array of class names that will support history
 	 */
-	protected static $classes = [];
+	protected static $enabled_classes = [];
 
 	//-------------------------------------------------------------------------- $excepted_properties
 	/**
@@ -115,53 +122,26 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 
 	//----------------------------------------------------------------------------------- __construct
 	/**
-	 * @param $configuration array
+	 * @param $configuration array|null
 	 */
-	public function __construct($configuration)
+	public function __construct($configuration = null)
 	{
-		$used_class_names = [];
-		foreach($configuration as $class_name => $class_configuration)
-		{
-			// case where there is no class configuration and class name is value instead of key
-			if (is_integer($class_name) && is_string($class_configuration)) {
-				$class_name = $class_configuration;
-				$class_configuration = [];
-			}
-			if (!$class_configuration) {
-				$class_configuration = [];
-			}
-
-			// store enabled class with source and built information
-			self::$source_classes[$class_name] = $class_name;
-			$built_class_name = (Class_Builder::isBuilt($class_name)) ? $class_name
-				: Class_Builder::builtClassName($class_name);
-			if ($built_class_name && class_exists($built_class_name)) {
-				self::$source_classes[$built_class_name] = $class_name;
-				self::$classes[] = $used_class_name = $built_class_name;
-			}
-			else {
-				self::$classes[] = $used_class_name = $class_name;
-			}
-			$used_class_names[$class_name] = $used_class_name;
-
-			// store excepted properties for the class
-			if (isset($class_configuration[self::EXCEPTED])) {
-				foreach($class_configuration[self::EXCEPTED] as $property_name) {
-					self::$excepted_properties[$used_class_name] = $property_name;
+		if (isset($configuration)) {
+			foreach($configuration as $class_name => $class_configuration)
+			{
+				// case where there is no class configuration and class name is value instead of key
+				if (is_integer($class_name) && is_string($class_configuration)) {
+					$class_name = $class_configuration;
+					$class_configuration = [];
 				}
-			}
-
-			// store highlighted properties for the
-			if (isset($class_configuration[self::HIGHLIGHT])) {
-				foreach($class_configuration[self::HIGHLIGHT] as $property_name) {
-					self::$highlighted_properties[$used_class_name] = $property_name;
+				if (!$class_configuration) {
+					$class_configuration = [];
 				}
-			}
-
-			// store only properties for the class
-			if (isset($class_configuration[self::ONLY])) {
-				foreach($class_configuration[self::ONLY] as $property_name) {
-					self::$only_properties[$used_class_name] = $property_name;
+				// enable class
+				self::enableClass($class_name);
+				// configure class
+				foreach($class_configuration as $configuration_name => $properties) {
+					self::setClassConfiguration($class_name, $configuration_name, $properties);
 				}
 			}
 		}
@@ -182,7 +162,7 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	 */
 	public function activate()
 	{
-		foreach (self::$classes as $class_name) {
+		foreach (self::$enabled_classes as $class_name) {
 			self::activateForClass($class_name);
 			if (Class_Builder::isBuilt($class_name)) {
 				$source_class_name = self::getSourceClassName($class_name);
@@ -234,6 +214,29 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 	 */
 	public static function doNothing() {}
 
+	/**
+	 * Enable a class for history
+	 *
+	 * @param $class_name string
+	 */
+	public static function enableClass($class_name) {
+		// store enabled class with source and built information
+		self::$source_classes[$class_name] = $class_name;
+		$built_class_name = (Class_Builder::isBuilt($class_name)) ? $class_name
+			: Class_Builder::builtClassName($class_name);
+		if ($built_class_name && class_exists($built_class_name)) {
+			self::$source_classes[$built_class_name] = $class_name;
+			self::$enabled_classes[] = $used_class_name = $built_class_name;
+		}
+		else {
+			self::$enabled_classes[] = $used_class_name = $class_name;
+		}
+		// init properties configuration for class name
+		self::$excepted_properties[$used_class_name] = [];
+		self::$highlighted_properties[$used_class_name] = [];
+		self::$only_properties[$used_class_name] = [];
+	}
+
 	//-------------------------------------------------------------------------------------- generate
 	/**
 	 * Generate dynamic Xxxxx_History classes and send them to main generator
@@ -247,14 +250,14 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 			Paths::getRelativeFileName(__DIR__ . '/prototype/History.php')
 		);
 
-		foreach (self::$classes as $class_name) {
+		foreach (self::$enabled_classes as $class_name) {
 			$source_class_name = Class_Builder::isBuilt($class_name)
 				? self::getSourceClassName($class_name)
 				: $class_name;
 			list($generated_class_name, $generated_source) = $this->generateClass($source_class_name);
 			$generator->addClass($generated_class_name, $generated_source);
 		}
-		return (boolean)(count(self::$classes));
+		return (boolean)(count(self::$enabled_classes));
 	}
 
 	//--------------------------------------------------------------------------------- generateClass
@@ -318,10 +321,10 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 			$built_class_name = Class_Builder::builtClassName($class_name);
 			$source_class_name = $class_name;
 		}
-		if (in_array($source_class_name, self::$classes)) {
+		if (in_array($source_class_name, self::$enabled_classes)) {
 			return $source_class_name;
 		}
-		elseif (in_array($built_class_name,	self::$classes)
+		elseif (in_array($built_class_name,	self::$enabled_classes)
 		) {
 			return $built_class_name;
 		}
@@ -485,6 +488,17 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * @param $class_name         string
+	 * @param $configuration_name string self::EXCEPTED|self::HIGHLIGHT|self::ONLY
+	 * @param $properties         string[]
+	 */
+	public static function setClassConfiguration($class_name, $configuration_name, $properties)
+	{
+		$used_class_name = self::getUsedClass($class_name);
+		self::${$configuration_name}[$used_class_name] = $properties;
 	}
 
 	//-------------------------------------------------------------------------------------- register
