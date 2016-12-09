@@ -155,20 +155,27 @@ abstract class History
 		);
 		$type = $property->getType();
 		$value = $this->$property_name;
-		if ($type->isDateTime()) {
-			$value = $value ? new Date_Time($value) : null;
-		}
-		elseif ($type->isClass()) {
-			$class_name = $type->getElementTypeAsString();
+		try {
+			if ($type->isDateTime()) {
+				if ($value) {
+					$value = new Date_Time($value);
+				}
+			}
+			elseif ($type->isClass()) {
+				$class_name = $type->getElementTypeAsString();
+				if ($value && isStrictNumeric($value)) {
+					$value = strval(Dao::read($value, $class_name));
+				}
+			}
+			elseif ($type->isBoolean()) {
+				$value = $value ? 'yes' : 'no';
+			}
 			if ($value) {
-				$value = strval(Dao::read($value, $class_name));
+				$value = Loc::propertyToLocale($property, $value);
 			}
 		}
-		elseif ($type->isBoolean()) {
-			$value = $value ? 'yes' : 'no';
-		}
-		if ($value) {
-			$value = Loc::propertyToLocale($property, $value);
+		catch (Exception $e) {
+			// if it failed, we keep and display the value like it is
 		}
 		return strval($value);
 	}
