@@ -20,7 +20,7 @@ use ITRocks\Framework;
  *
  * @override object @store false
  * @override object @var Main_Object_Example
- * @set Main_Set_Name_History
+ * @set main_set_name_history
  */
 class History extends Framework\History
 {
