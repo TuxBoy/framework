@@ -271,7 +271,7 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 
 		$namespace = $object_class_name;
 		$short_class_name = Names::classToProperty($object_class_name);
-		$set_name = Names::classToSet($object_class_name);
+		$set_name = Names::classToProperty(Names::classToSet($object_class_name)) . '_histories';
 		$object_property = $short_class_name;
 
 		$generated_source = preg_replace('/\/\*\*##REMOVE.+##\*\/\n/isU', '',
@@ -279,7 +279,7 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 				[
 					'/**/namespace ITRocks\Framework\History\Prototype;/**/',
 					'main_object_example',
-					'Main_Set_Name_History',
+					'main_set_name_history',
 					'Main_Object_Example',
 					'##object_property##',
 					'/**/$object_property/**/',
@@ -288,7 +288,7 @@ class Manager implements Registerable, Configurable, Activable, IGenerative
 				[
 					"namespace $namespace;",
 					$short_class_name,
-					$set_name . '_Histories',
+					$set_name,
 					BS . $object_class_name,
 					$object_property,
 					'$' . $object_property,
