@@ -28,13 +28,24 @@ abstract class Writer
 
 	//--------------------------------------------------------------------------------- $before_write
 	/**
+	 * The main object in its state before write (so with old values)
+	 *
 	 * @var object
 	 */
 	private static $before_write;
 
+	//-------------------------------------------------------------------------- $expanded_properties
+	/**
+	 * List of set names expanded/to expand for a main set name (matching a class to historize)
+	 *
+	 * @var string[][] [main_set_name => [set_name, set_name...]]
+	 */
+	private static $expanded_sets;
+
 	//-------------------------------------------------------------------------------- $history_dates
 	/**
 	 * Date to set in history entries for a given class and identifier
+	 *
 	 * @example [User::class][12345] = Date_Time()
 	 * @var Date_Time[][]
 	 */
@@ -43,6 +54,8 @@ abstract class Writer
 	//------------------------------------------------------------------------------- $linked_classes
 	/**
 	 * List of processed classes with Link_Class as value or false if not link class
+	 * There is special management for link classes because we do not want to historize their
+	 * inherited properties.
 	 *
 	 * @var mixed[] [class_name => Link_Class|false]
 	 */
@@ -50,7 +63,8 @@ abstract class Writer
 
 	//----------------------------------------------------------------------------- $local_properties
 	/**
-	 * Cache of local properties for link class
+	 * Cache of local properties for link classes
+	 * The purpose is to historize only local properties of link class, not inherited properties.
 	 *
 	 * @var string[][] [class_name => [property_name, property_name, ...]]
 	 */
@@ -58,6 +72,8 @@ abstract class Writer
 
 	//------------------------------------------------------------------------------------ afterWrite
 	/**
+	 * Create the history entries, comparing old values of ::$before_write with new values of $object
+	 *
 	 * @param $object object
 	 * @param $link   Data_Link
 	 */
@@ -153,6 +169,8 @@ abstract class Writer
 
 	//----------------------------------------------------------------------------------- beforeWrite
 	/**
+	 * Store the object in its state (with old values) before it is written with its new values
+	 *
 	 * @param $object object
 	 * @param $link   Data_Link
 	 */
@@ -166,10 +184,12 @@ abstract class Writer
 		Dao::begin();
 		if (($link instanceof Identifier_Map) && ($identifier = $link->getObjectIdentifier($object))) {
 			$class_name = Builder::className(get_class($object));
+			// load a copy of object to keep old values
 			self::$before_write[$class_name][$identifier] = $before = $link->read(
 				$identifier, $class_name
 			);
-			self::expand($before, new Reflection_Class($class_name));
+			$expanded_objects = [];
+			self::expand($object, $before, new Reflection_Class($class_name), $expanded_objects);
 		}
 	}
 
@@ -216,24 +236,25 @@ abstract class Writer
 
 	//------------------------------------------------------------------------- createHistoryForClass
 	/**
-	 * @param $main                 object
-	 * @param $before               object|null
-	 * @param $after                object|null
-	 * @param $history              History[]
-	 * @param $history_class        Reflection_Class
-	 * @param $class                Reflection_Class
-	 * @param $path_prefix          string
-	 * @param $property_name_prefix string
+	 * @param $main                         object
+	 * @param $before                       object|null
+	 * @param $after                        object|null
+	 * @param $history                      History[]
+	 * @param $history_class                Reflection_Class
+	 * @param $class                        Reflection_Class
+	 * @param $path_prefix                  string
+	 * @param $property_path_indexed_prefix string
 	 */
 	private static function createHistoryForClass($main, $before, $after, &$history,
-		$history_class, $class, $path_prefix = '', $property_name_prefix = '')
+		$history_class, $class, $path_prefix = '', $property_path_indexed_prefix = '')
 	{
+		$set_name = Names::classToSet(get_class($main));
 		// we only want to parse accessible properties, not private
 		foreach ($class->getProperties([T_EXTENDS, T_USE, Reflection_Class::T_SORT]) as $property) {
 			$property_path = $path_prefix . $property->name;
-			$property_name = $property_name_prefix . $property->name;
+			$property_path_indexed = $property_path_indexed_prefix . $property->name;
 			$type = $property->getType();
-			if (self::shouldGoDeeperFor($property)) {
+			if (self::shouldGoDeeperFor($set_name, $property)) {
 				$sub_class   = $property->getType()->asReflectionClass();
 				$sub_before_array = $property->getValue($before);
 				$sub_after_array  = $property->getValue($after);
@@ -251,8 +272,9 @@ abstract class Writer
 				while ($sub_before !== false || $sub_after !== false) {
 					$i++;
 					$index = $type->isMultiple() ? "[$i]" : '';
-					self::createHistoryForClass($main, $sub_before, $sub_after, $history,
-						$history_class, $sub_class, $property_path . DOT, $property_name . $index . DOT);
+					self::createHistoryForClass($main, $sub_before, $sub_after, $history, $history_class,
+						$sub_class, $property_path . DOT, $property_path_indexed . $index . DOT
+					);
 					$sub_before = next($sub_before_array);
 					$sub_after  = next($sub_after_array);
 				}
@@ -273,9 +295,14 @@ abstract class Writer
 				// loop on array to create entries
 				$old_value = reset($old_values);
 				$new_value  = reset($new_values);
+				$i = 0;
 				while ($old_value !== false || $new_value !== false) {
+					$i++;
+					$index = $type->isMultiple() ? "[$i]" : '';
 					if (self::areDifferent($property, $old_value, $new_value)) {
-						$history[] = self::createHistoryEntry($main, $property_path, $old_value, $new_value);
+						$history[] = self::createHistoryEntry($main, $property_path_indexed . $index,
+							$old_value, $new_value
+						);
 					}
 					$old_value = next($old_values);
 					$new_value  = next($new_values);
@@ -286,50 +313,71 @@ abstract class Writer
 
 	//---------------------------------------------------------------------------------------- expand
 	/**
-	 * @param $object object
-	 * @param $class  Reflection_Class
-	 * @todo optimize expansion by only expanding properties to be historized
+	 * Expand a sub object by loading its properties values and expanding sub object if needed
+	 *
+	 * @param $main             object
+	 * @param $object           object
+	 * @param $class            Reflection_Class
+	 * @param $expanded_objects integer[][] [set_name => [id, id, id...]]
+	 * @param $prefix           string the prefix path
 	 */
-	private static function expand($object, $class)
+	private static function expand($main, $object, $class, &$expanded_objects, $prefix = '')
 	{
+		$main_set_name = Names::classToSet(get_class($main));
+		$set_name = Names::classToSet(get_class($object));
+		// if this object si already expanded, do not do it again of course !
+		if (isset($expanded_objects[$set_name])
+			&& in_array(Dao::getObjectIdentifier($object), $expanded_objects[$set_name])
+		) {
+			return;
+		}
+		// flag this object as expanded
+		$expanded_objects[$set_name][] = Dao::getObjectIdentifier($object);
 		// call getter for collections and maps in order to get the full value before write
 		// we only want to parse accessible properties, not private
-		foreach (($properties = $class->getProperties([T_EXTENDS, T_USE])) as $property) {
-			if (self::shouldGoDeeperFor($property)) {
-				$type = $property->getType();
-				$sub_class = $type->asReflectionClass();
-				$value = $property->getValue($object);
-
-				// we want to expand old object properties and sub properties
-				// if we have null value, we build a new instance, otherwise when we'll try to access
-				// properties after the write (when comparing old and new) the getter will read new value
-				// and will put it in this object like if it is the old value
-				if (is_null($value)) {
-					if ($type->isClass()) {
-						if ($type->isDateTime()) {
-							$value = Date_Time::min();
-						}
-						elseif ($type->isMultiple()) {
-							$value = [];
-						}
-						else {
-							$value = Builder::create($type->getElementTypeAsString());
-							if (isA($value, Component::class)) {
-								$value->setComposite($object);
-							}
-						}
-						$property->setValue($object, $value);
-					}
+		foreach (($properties = $class->getProperties([T_EXTENDS, T_USE])) as $property)
+			if ($property->isPublic()) {
+				$property_path = $property->path = $prefix . $property->name;
+				$property->root_class = get_class($main);
+				// bypass properties not historized
+				if (!Manager::isToBeHistorized(get_class($main), $property_path)) {
+					continue;
 				}
-
-				$values = (is_array($value)) ? $value : [$value];
-				foreach($values as $value) {
-					if ($value) {
-						self::expand($value, $sub_class);
+				// load property old value to be able to compare with new value after write
+				$value = $property->getValue($object);
+				// should we expand deeper this property?
+				if (self::shouldGoDeeperFor($main_set_name, $property)) {
+					$type = $property->getType();
+					$sub_class = $type->asReflectionClass();
+					// we want to expand old object properties and sub properties
+					// if we have null value, we build a new instance, otherwise when we'll try to access
+					// properties after the write (when comparing old and new) the getter will read new value
+					// and will put it in this object like if it was the old value
+					if (is_null($value)) {
+						if ($type->isClass()) {
+							if ($type->isDateTime()) {
+								$value = Date_Time::min();
+							}
+							elseif ($type->isMultiple()) {
+								$value = [];
+							}
+							else {
+								$value = Builder::create($type->getElementTypeAsString());
+								if (isA($value, Component::class)) {
+									$value->setComposite($object);
+								}
+							}
+							$property->setValue($object, $value);
+						}
+					}
+					$values = (is_array($value)) ? $value : [$value];
+					foreach($values as $value) {
+						if ($value) {
+							self::expand($main, $value, $sub_class, $expanded_objects, $property_path . DOT);
+						}
 					}
 				}
 			}
-		}
 	}
 
 	//-------------------------------------------------------------------------------- getHistoryDate
@@ -361,22 +409,17 @@ abstract class Writer
 	 */
 	private static function isLinkedClass($property)
 	{
-		/*$type = $property->getType();
-		if ($type->isClass()) {
-			$class_name = $type->getElementTypeAsString();*/
 		$class_name = $property->final_class;
-			if (!isset(self::$linked_classes[$class_name])) {
-				$class = new Reflection_Class($class_name);
-				if ($class->getAnnotation(Annotation\Class_\Link_Annotation::ANNOTATION)->class) {
-					self::$linked_classes[$class_name] = new Link_Class($class_name);
-				}
-				else {
-					self::$linked_classes[$class_name] = false;
-				}
+		if (!isset(self::$linked_classes[$class_name])) {
+			$class = new Reflection_Class($class_name);
+			if ($class->getAnnotation(Annotation\Class_\Link_Annotation::ANNOTATION)->class) {
+				self::$linked_classes[$class_name] = new Link_Class($class_name);
 			}
-			return self::$linked_classes[$class_name] ? true : false;
-		/*}
-		return false;*/
+			else {
+				self::$linked_classes[$class_name] = false;
+			}
+		}
+		return self::$linked_classes[$class_name] ? true : false;
 	}
 
 	//------------------------------------------------------------------------------- isLocalProperty
@@ -394,9 +437,14 @@ abstract class Writer
 		$class_name = $property->final_class;
 			if (!isset(self::$local_properties[$class_name])) {
 				if (isset(self::$linked_classes[$class_name]) && self::$linked_classes[$class_name]) {
+					/** @var $link_class Link_Class */
 					$link_class = self::$linked_classes[$class_name];
-					$local_properties = array_diff(
-						array_keys($link_class->getLocalProperties()),
+					$local_properties = array_merge(
+						array_diff(
+							array_keys($link_class->getLocalProperties()),
+							$link_class->getLinkPropertiesNames(),
+							['composite_properties']
+						),
 						[$link_class->getCompositeProperty()->name]
 					);
 					self::$local_properties[$class_name] = $local_properties;
@@ -449,13 +497,29 @@ abstract class Writer
 
 	//----------------------------------------------------------------------------- shouldGoDeeperFor
 	/**
+	 * @param $main_set_name string
 	 * @param $property Reflection_Property
 	 * @return boolean
 	 */
-	private static function shouldGoDeeperFor($property)
+	private static function shouldGoDeeperFor($main_set_name, $property)
 	{
 		// bypass composite_properties
 		if ($property->name =='composite_properties') {
+			return false;
+		}
+		$type = $property->getType();
+		// bypass properties that are not a class
+		if (!$type->isClass() || $type->isDateTime()) {
+			return false;
+		}
+		// bypass already expanded class
+		$set_name = Names::classToSet($type->getElementTypeAsString());
+		if ($set_name == $main_set_name
+			|| (
+				isset(self::$expanded_sets[$main_set_name])
+				&& in_array($set_name, self::$expanded_sets[$main_set_name])
+			)
+		) {
 			return false;
 		}
 		// bypass composite, but only if class is not a linked class
@@ -466,7 +530,6 @@ abstract class Writer
 		if (self::isLinkedClass($property) && !self::isLocalProperty($property)) {
 			return false;
 		}
-		$type = $property->getType();
 		$should_go_deeper =
 			(
 				($property->getAnnotation('component')->value && !$type->isMultipleString())
@@ -474,6 +537,9 @@ abstract class Writer
 					== Link_Annotation::COLLECTION
 				)
 			);
+		if ($should_go_deeper) {
+			self::$expanded_sets[$main_set_name][] = $property->path;
+		}
 		return $should_go_deeper;
 	}
 

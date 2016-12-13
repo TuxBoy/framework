@@ -140,13 +140,13 @@ abstract class History
 	/**
 	 * Returns a locale formatted value of old value or new value
 	 *
-	 * @param $property_name string old_value|new_value
+	 * @param $kind_of_value string old_value|new_value
 	 * @return string
 	 * @throws Exception
 	 */
-	private function display($property_name)
+	private function display($kind_of_value)
 	{
-		if (!in_array($property_name, ['new_value', 'old_value'])) {
+		if (!in_array($kind_of_value, ['new_value', 'old_value'])) {
 			throw new Exception("bad property name given :  should be old_value|new_value");
 		}
 		$property = new Reflection_Property(
@@ -154,7 +154,7 @@ abstract class History
 			History_Output::cleanPropertyName($this->property_name)
 		);
 		$type = $property->getType();
-		$value = $this->$property_name;
+		$value = $this->$kind_of_value;
 		try {
 			if ($type->isDateTime()) {
 				if ($value) {
@@ -202,6 +202,15 @@ abstract class History
 		return $this->display('old_value');
 	}
 
+	/**
+	 * Returns the $property_name cleaned of its index parts
+	 *
+	 * @example my_property.my_collection[3].my_sub_field => my_property.my_collection.my_sub_field
+	 */
+	public function getCleanPropertyName()
+	{
+		return preg_replace('/\[\d*\]/U', '', $this->property_name);
+	}
 
 	//---------------------------------------------------------------------------------- getHighlight
 	/* @noinspection PhpUnusedPrivateMethodInspection @getter */
