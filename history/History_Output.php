@@ -53,6 +53,7 @@ trait History_Output
 	//------------------------------------------------------------------------- historyTreeByUserDate
 	/**
 	 * Returns repair history, in a ready-for-display ordered and optimized tree
+	 *
 	 * This is used for user display :
 	 * - properties that have @user hidden or @user invisible will be removed from this tree
 	 *
