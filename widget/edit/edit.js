@@ -334,6 +334,7 @@ $('document').ready(function()
 				$(this).removeData('value');
 				$(this).prev().val('');
 				$(this).val('');
+				$(this).prev().change();
 			}
 		});
 
