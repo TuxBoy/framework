@@ -26,6 +26,13 @@ use ITRocks\Framework\Tools\Stringable;
 abstract class Writer
 {
 
+	/**
+	 * State of the history writer engine. true is on, false is off
+	 *
+	 * @var boolean
+	 */
+	public static $history_on = true;
+
 	//--------------------------------------------------------------------------------- $before_write
 	/**
 	 * The main object in its state before write (so with old values)
@@ -79,6 +86,9 @@ abstract class Writer
 	 */
 	public static function afterWrite($object, Data_Link $link)
 	{
+		if (!self::$history_on) {
+			return;
+		}
 		// avoid to historize the (inherited) object of a link class
 		if (!Manager::isEnabled(get_class($object))) {
 			return;
@@ -177,7 +187,7 @@ abstract class Writer
 	public static function beforeWrite($object, Data_Link $link)
 	{
 		// avoid to historize the (inherited) object of a link class
-		if (!Manager::isEnabled(get_class($object))) {
+		if (!(self::$history_on && Manager::isEnabled(get_class($object)))) {
 			return;
 		}
 		// this begin() will be solved into afterWrite()
